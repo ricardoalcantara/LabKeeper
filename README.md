@@ -15,6 +15,8 @@ LabKeeper helps you keep track of all servers in your homelab environment by aut
 - [ ] REST API endpoints
 - [ ] Web dashboard
 
+[Roadmap](ROADMAP.md)
+
 ### Future Enhancements
 - [ ] Real-time status monitoring
 - [ ] Resource usage tracking (CPU, memory, disk)
