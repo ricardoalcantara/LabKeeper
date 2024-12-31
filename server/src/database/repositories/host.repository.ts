@@ -11,8 +11,4 @@ export class HostRepository extends BaseRepository<Host> {
   ) {
     super(model);
   }
-
-  // async findByAddress(address: string): Promise<Host> {
-  //   return this.findOne({ address } as any);
-  // }
 }
