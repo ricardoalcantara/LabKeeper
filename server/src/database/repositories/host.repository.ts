@@ -11,4 +11,4 @@ export class HostRepository extends BaseRepository<Host> {
   ) {
     super(model);
   }
-}
+} 
