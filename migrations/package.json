@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "up": "npx sequelize-cli db:migrate",
-    "down": "npx sequelize-cli db:migrate:undo:all"
+    "down": "npx sequelize-cli db:migrate:undo:all",
+    "seed": "npx sequelize-cli db:seed:all",
+    "unseed": "npx sequelize-cli db:seed:undo:all"
   },
   "author": "",
   "license": "ISC",
@@ -13,6 +15,7 @@
     "sequelize-cli": "^6.6.2"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "pg": "^8.13.1",
     "sequelize": "^6.37.5"
   }
