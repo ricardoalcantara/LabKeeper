@@ -6,6 +6,8 @@ import { Service } from './models/service.model';
 import { ServiceRepository } from './repositories/service.repository';
 import { IpAddress } from './models/ip-address.model';
 import { IpAddressRepository } from './repositories/ip-address.repository';
+import { User } from './models/user.model';
+import { UserRepository } from './repositories/user.repository';
 
 export const databaseProviders = [
   {
@@ -27,6 +29,13 @@ export const databaseProviders = [
     inject: [getModelToken(IpAddress)],
     useFactory: (model: typeof IpAddress) => {
       return new IpAddressRepository(model);
+    },
+  },
+  {
+    provide: REPOSITORIES.USER_REPOSITORY,
+    inject: [getModelToken(User)],
+    useFactory: (model: typeof User) => {
+      return new UserRepository(model);
     },
   },
 ];

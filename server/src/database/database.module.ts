@@ -7,6 +7,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import configuration, { IDatabaseConfig } from './database.config';
 import { Service } from './models/service.model';
 import { IpAddress } from './models/ip-address.model';
+import { User } from './models/user.model';
 
 @Module({
   imports: [
@@ -20,11 +21,11 @@ import { IpAddress } from './models/ip-address.model';
 
         return {
           ...config,
-          models: [Host, Service, IpAddress],
+          models: [Host, Service, IpAddress, User],
         };
       },
     }),
-    SequelizeModule.forFeature([Host, Service, IpAddress]),
+    SequelizeModule.forFeature([Host, Service, IpAddress, User]),
   ],
   providers: [...databaseProviders, ...repositoryProviders],
   exports: [SequelizeModule, ...databaseProviders, ...repositoryProviders],
