@@ -1,0 +1,16 @@
+import { BrowserRouter, Route, Routes } from "react-router-dom"
+import { CallbackPage } from "../pages/CallbackPage"
+import { HomePage } from "../pages/HomePage"
+import { LoginPage } from "../pages/LoginPage"
+
+export function AppRoutes() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/callback" element={<CallbackPage />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}

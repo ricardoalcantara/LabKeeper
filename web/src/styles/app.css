@@ -1,0 +1,117 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #f4f6f8;
+  color: #1a1a1a;
+}
+
+#root {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.card {
+  width: min(720px, 100%);
+  background: #fff;
+  border: 1px solid #d8dee4;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sub {
+  color: #5c6670;
+  margin-top: 0.25rem;
+}
+
+.config {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.5rem 1rem;
+  margin: 1rem 0;
+}
+
+.config dt {
+  font-weight: 600;
+}
+
+.config dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+button,
+.link-button {
+  display: inline-block;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  background: #0b5fff;
+  color: #fff;
+}
+
+button.secondary,
+.link-button.secondary {
+  background: #eef2f7;
+  color: #1a1a1a;
+}
+
+.error {
+  color: #b42318;
+}
+
+pre {
+  overflow: auto;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0f1419;
+    color: #e8edf2;
+  }
+
+  .card {
+    background: #151b22;
+    border-color: #2a3441;
+  }
+
+  .sub {
+    color: #9aa7b5;
+  }
+
+  button.secondary,
+  .link-button.secondary {
+    background: #243040;
+    color: #e8edf2;
+  }
+
+  pre {
+    background: #0f1419;
+  }
+}
