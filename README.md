@@ -20,9 +20,10 @@ Do not call Inventory items “servers” — that word means the **Server** bin
 Minimal authenticated admin app:
 
 - **Portal** — React SPA with OIDC PKCE via [min-idp](https://github.com/ricardoalcantara/min-idp)
-- **Server** — go-minstack API that validates JWTs and maintains Inventory from Agents
+- **Server** — go-minstack API that validates JWTs, maintains Inventory from Agents, and stores encrypted Credentials
 - `GET /api/ping` — auth check
 - `GET /api/inventory/hosts` — list Hosts (JWT)
+- `/api/credentials` — encrypted vault (password / SSH key; JWT; secrets never returned on GET)
 
 ### Run Admin locally
 
@@ -53,10 +54,12 @@ cd docker && docker compose up -d
 
 ```bash
 cp .env.example .env
+# set LABKEEPER_MASTER_KEY=$(openssl rand -base64 32)
+# optional: LABKEEPER_DB_DRIVER / LABKEEPER_DB_DSN (default sqlite ./data/labkeeper.db)
 go run ./cmd/server
 ```
 
-Server listens for Portal HTTP (`MINSTACK_HTTP_PORT`, default `8080`) and Agents on mTLS WebSocket (`LABKEEPER_AGENT_ADDR`, default `127.0.0.1:8443`). It writes the Agent URL to `$TMPDIR/labkeeper-server-url`.
+Server listens for Portal HTTP (`MINSTACK_HTTP_PORT`, default `8080`) and Agents on mTLS WebSocket (`LABKEEPER_AGENT_ADDR`). It runs goose migrations, opens the DB, and writes the Agent URL to `$TMPDIR/labkeeper-server-url`. Wipe local SQLite with `rm -rf data/`.
 
 5. Start Portal:
 
@@ -67,7 +70,7 @@ npm install
 npm run dev
 ```
 
-Open [http://labkeeper:5173](http://labkeeper:5173). Home shows **Inventory** Hosts after sign-in. `/login` shows a manual SSO button. Logout returns to `/login`.
+Open [http://labkeeper:5173](http://labkeeper:5173). Home shows **Inventory** Hosts; **Credentials** manages the vault. `/login` shows a manual SSO button. Logout returns to `/login`.
 
 If the IdP DB was bootstrapped with a different redirect URI, update the OIDC client or reset the Docker volume (`docker compose down -v`).
 
@@ -107,10 +110,14 @@ Expected flow: Agent connects → Inventory Host appears online in Portal → he
 - [x] Agent mTLS WebSocket hub on Server (poc-server removed)
 - [x] Inventory Hosts via hello/heartbeat + `GET /api/inventory/hosts`
 - [x] Portal home shows Inventory Hosts
+- [x] Encrypted Credentials vault (password / SSH key) + Portal UI
+- [x] Server DB (sqlite/mysql/postgres) + goose migrations
 
 ### Next
+- [ ] Assign credential → Host
+- [ ] Server-side SSH login/probe with vault credentials
 - [ ] Per-agent certificates / enrollment
-- [ ] Persist Inventory (DB when needed)
+- [ ] Persist Inventory Hosts (beyond in-memory)
 - [ ] Network / LAN discovery for candidate Hosts
 - [ ] Serve Portal from Server (or reverse proxy) for non-dev deploys
 - [ ] Inventory groups (Ansible-style)

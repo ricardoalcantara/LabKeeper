@@ -22,6 +22,10 @@ Do **not** call Inventory items “servers” — **Server** is the LabKeeper Ad
 - `cmd/agent/` — LabKeeper Agent
 - `internal/health/` — Portal health/ping API
 - `internal/inventory/` — Inventory registry, Agent hub, Hosts API
+- `internal/credentials/` — encrypted Credentials vault (password / SSH key)
+- `internal/crypto/` — `CryptoService` (AES-GCM via `LABKEEPER_MASTER_KEY`)
+- `internal/storage/` — multi-driver GORM (`LABKEEPER_DB_*`)
+- `migrations/` — goose SQL migrations (embedded)
 - `internal/httpapi/`, `internal/pki/` — Agent wire protocol and local mTLS PKI
 - `docker/` — min-idp Compose for local Portal auth (`v0.5.0-alpha`; override is gitignored)
 
@@ -33,8 +37,9 @@ Follow [go-minstack AGENTS.example.md](https://github.com/go-minstack/go-minstac
 - Keep `cmd/*/main.go` thin
 - Register domains via `internal/<domain>/module.go` with `Register(app *core.App)`
 - Use constructor injection; avoid globals and `init()` wiring
-- Portal API modules: `core` + `gin` + `portalauth` (no DB until needed)
+- Portal API modules: `core` + `gin` + `portalauth` + `storage` + `migration` when persistence is needed
 - Route registration belongs in explicit `RegisterRoutes` invoked by `app.Invoke(...)`
+- Schema changes go through goose migrations under `migrations/` (not AutoMigrate for production tables)
 
 ### Auth boundaries
 
@@ -52,6 +57,9 @@ Server (`.env`):
 - `MINSTACK_JWKS_URL`
 - `MINSTACK_LOG_LEVEL`
 - `LABKEEPER_AGENT_ADDR` — Agent mTLS WebSocket listen address
+- `LABKEEPER_DB_DRIVER` — `sqlite` | `mysql` | `postgres` (default `sqlite`)
+- `LABKEEPER_DB_DSN` — e.g. `./data/labkeeper.db`
+- `LABKEEPER_MASTER_KEY` — base64 32-byte AES key (`openssl rand -base64 32`)
 
 Portal (`web/.env`):
 
@@ -81,17 +89,19 @@ Agent:
 ### Auth UX rules
 
 - `/` auto-redirects to SSO when unauthenticated; signed-in home shows Inventory Hosts
+- `/credentials` manages the encrypted Credentials vault
 - `/login` stays on page and shows the SSO button (no auto redirect)
 - `/callback` completes OIDC and returns to `/`
 - Logout clears local session and uses min-idp RP logout with `post_logout_redirect_uri` = Portal `/login` (allowlisted on the OIDC client)
 
 ## Do not do this
 
-- Do not add a database to the portal MVP unless required
+- Do not return decrypted credential secrets from list/get APIs
+- Do not use package-level crypto helpers — inject `*crypto.CryptoService`
 - Do not serve the SPA from the Go API yet (Vite dev server is enough for now)
 - Do not mix Agent mTLS auth with Portal OIDC auth
 - Do not hide route registration inside constructors
-- Do not commit `web/.env` or `docker-compose.override.yml`
+- Do not commit `web/.env`, `docker-compose.override.yml`, `data/`, or `LABKEEPER_MASTER_KEY` values
 - **NEVER** add `Co-Authored-By` / `Co-authored-by` (or any co-author trailer) to git commits — not for Cursor, AI agents, bots, or tools. If a hook or tool injects one, strip it before committing or amend it out before push.
 
 ## Local development

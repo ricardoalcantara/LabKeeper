@@ -3,3 +3,7 @@ docker/docker-compose.override.yml
 web/.env
 web/node_modules
 web/dist
+data/
+*.db
+*.db-shm
+*.db-wal

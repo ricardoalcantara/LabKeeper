@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { Link } from "react-router-dom"
 import { AppHeader } from "../components/AppHeader"
 import { HostList } from "../components/HostList"
 import { UserSummary } from "../components/UserSummary"
@@ -32,9 +33,14 @@ export function HomePage() {
         title="LabKeeper Admin"
         subtitle="Inventory"
         actions={
-          <button type="button" className="secondary" onClick={() => void logout()}>
-            Sign out
-          </button>
+          <>
+            <Link className="link-button secondary" to="/credentials">
+              Credentials
+            </Link>
+            <button type="button" className="secondary" onClick={() => void logout()}>
+              Sign out
+            </button>
+          </>
         }
       />
 

@@ -71,6 +71,62 @@ body {
   margin-top: 0.25rem;
 }
 
+.section-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-toolbar h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.mono-cell {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.credential-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.credential-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.credential-form input,
+.credential-form select,
+.credential-form textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+}
+
+.credential-form textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
 .host-table {
   width: 100%;
   border-collapse: collapse;
@@ -192,6 +248,13 @@ pre {
   .link-button.secondary {
     background: #243040;
     color: #e8edf2;
+  }
+
+  .credential-form input,
+  .credential-form select,
+  .credential-form textarea {
+    border-color: #2a3441;
+    background: #0f1419;
   }
 
   pre {
