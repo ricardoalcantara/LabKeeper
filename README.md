@@ -16,31 +16,39 @@ The portal is a minimal authenticated app:
 
 ### Run the portal locally
 
-Assumes a standalone [min-idp](https://github.com/ricardoalcantara/min-idp) is already running (not Docker). Defaults match a LAN setup on `192.168.1.107`.
+LabKeeper is self-contained for local portal work: min-idp runs from Docker (`v0.5.0-alpha`) with Docker hostnames `min-idp` and `labkeeper` (public PKCE bootstrap SP).
 
-On min-idp, set CORS and the bootstrap OIDC app (created once on a fresh DB):
+1. Map hostnames (once):
 
-```env
-MINSTACK_CORS_ORIGIN=http://192.168.1.107:5173
-MIN_IDP_EXTERNAL_URL=http://192.168.1.107:8081
-MIN_IDP_BOOTSTRAP_SP_NAME=LabKeeper Portal
-MIN_IDP_BOOTSTRAP_SP_CLIENT_ID=default
-MIN_IDP_BOOTSTRAP_SP_REDIRECT_URIS=http://192.168.1.107:5173/callback
-MIN_IDP_BOOTSTRAP_SP_PUBLIC=true
+```bash
+# /etc/hosts
+127.0.0.1 min-idp labkeeper
 ```
 
-`MIN_IDP_BOOTSTRAP_SP_PUBLIC=true` creates a public PKCE client (`token_endpoint_auth=none`, no secret) — required for the SPA. Bootstrap runs once on a fresh DB.
+2. Configure min-idp secrets (once):
 
-No SP registration script is needed — LabKeeper uses that bootstrapped client.
+```bash
+cp docker/docker-compose.override.example.yml docker/docker-compose.override.yml
+# set MIN_IDP_MASTER_KEY (openssl rand -base64 32) and optional SMTP
+# override CORS / EXTERNAL_URL / redirect URIs here for LAN access if needed
+```
 
-1. Start the API (copy `.env.example` to `.env` first if needed):
+3. Start min-idp:
+
+```bash
+cd docker && docker compose up -d
+```
+
+Compose defaults: `MIN_IDP_EXTERNAL_URL=http://min-idp:8081`, redirect `http://labkeeper:5173/callback`, `MIN_IDP_BOOTSTRAP_SP_PUBLIC=true`. Bootstrap runs once on a fresh volume.
+
+4. Start the API:
 
 ```bash
 cp .env.example .env
 go run ./cmd/server
 ```
 
-2. Start the SPA:
+5. Start the SPA:
 
 ```bash
 cd web
@@ -49,9 +57,9 @@ npm install
 npm run dev
 ```
 
-Open [http://192.168.1.107:5173](http://192.168.1.107:5173) (not `localhost`, so it matches min-idp CORS and redirect URIs). Visiting `/` redirects to SSO when logged out. `/login` shows a manual SSO button. Logout returns to `/login` to avoid redirect loops.
+Open [http://labkeeper:5173](http://labkeeper:5173). Visiting `/` redirects to SSO when logged out. `/login` shows a manual SSO button. Logout returns to `/login` to avoid redirect loops.
 
-If the DB was already bootstrapped with a different redirect URI, either update that OIDC client in min-idp or reset the min-idp database so bootstrap runs again.
+If the DB was already bootstrapped with a different redirect URI, either update that OIDC client in min-idp or reset the Docker volume so bootstrap runs again (`docker compose down -v`).
 
 See [AGENTS.md](AGENTS.md) for repo standards.
 

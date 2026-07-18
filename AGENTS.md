@@ -10,7 +10,7 @@ Standards for AI and human contributors working in this repository.
 - `cmd/agent/` — agent client that connects to `cmd/poc-server`
 - `internal/health/` — portal API domain modules
 - `internal/httpapi/`, `internal/pki/` — agent POC shared code
-- `docker/` — optional compose files (not required; prefer standalone min-idp)
+- `docker/` — min-idp Compose for local portal dev (`v0.5.0-alpha`; override is gitignored)
 
 ## Go backend (go-minstack)
 
@@ -74,12 +74,18 @@ SPA (`web/.env`):
 
 ## Local development
 
-Prefer a standalone min-idp process (see `/home/ricardo/min-idp/.env`), not Docker.
+LabKeeper runs alone for local portal work: min-idp via Docker (`ghcr.io/ricardoalcantara/min-idp:v0.5.0-alpha`), then the API and SPA on the host.
 
-1. Ensure min-idp is running with CORS for the SPA origin and a **public** bootstrap SP (`MIN_IDP_BOOTSTRAP_SP_PUBLIC=true`) whose redirect/client id match `web/.env`
-2. API: `go run ./cmd/server`
-3. SPA: `cd web && npm install && npm run dev`
-4. Open the SPA via the LAN host in `VITE_OIDC_REDIRECT_URI`, not bare `localhost`
+Default browser hostnames (add `127.0.0.1 min-idp labkeeper` to `/etc/hosts`):
+
+- IdP: `http://min-idp:8081`
+- SPA / redirect: `http://labkeeper:5173` (callback `/callback`)
+
+1. Copy `docker/docker-compose.override.example.yml` → `docker/docker-compose.override.yml` and set secrets (and LAN URL overrides if not using the hostnames above).
+2. Start min-idp: `cd docker && docker compose up -d`
+3. API: `go run ./cmd/server`
+4. SPA: `cd web && npm install && npm run dev`
+5. Open `http://labkeeper:5173`
 
 Do not use `scripts/register-portal-sp.sh` — the OIDC client comes from min-idp bootstrap env (`MIN_IDP_BOOTSTRAP_SP_*`, including `MIN_IDP_BOOTSTRAP_SP_PUBLIC=true` for the SPA).
 
@@ -87,5 +93,5 @@ Do not use `scripts/register-portal-sp.sh` — the OIDC client comes from min-id
 
 - go-minstack: `/home/ricardo/go-minstack-monorepo/AGENTS.example.md`
 - min-idp: `/home/ricardo/min-idp/AGENTS.md`
-- min-idp local env: `/home/ricardo/min-idp/.env`
+- min-idp image: `ghcr.io/ricardoalcantara/min-idp:v0.5.0-alpha`
 - OIDC SPA example: `/home/ricardo/min-idp/apps/oidc-public-test-sp`

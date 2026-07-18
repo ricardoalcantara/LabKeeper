@@ -1,7 +1,24 @@
 services:
   min-idp:
     environment:
-      # Override for non-localhost access, e.g. http://192.168.1.107:8081
-      MIN_IDP_EXTERNAL_URL: http://localhost:8081
-      # Generate with: openssl rand -base64 32
+      # Copy to docker-compose.override.yml (gitignored).
+      # Defaults in docker-compose.yml use hostnames min-idp / labkeeper.
+      # Override URLs here for LAN or real domains, and fill in real secrets.
+      # If a value contains `$`, escape it as `$$` (Compose variable interpolation).
+      #
+      # Example LAN override:
+      # MINSTACK_CORS_ORIGIN: http://192.168.1.107:5173
+      # MIN_IDP_EXTERNAL_URL: http://192.168.1.107:8081
+      # MIN_IDP_BOOTSTRAP_SP_REDIRECT_URIS: http://192.168.1.107:5173/callback
+      #
+      # Example domain and subdomain override:
+      # MINSTACK_CORS_ORIGIN: https://labkeeper.example.com
+      # MIN_IDP_EXTERNAL_URL: https://idp.example.com
+      # MIN_IDP_BOOTSTRAP_SP_REDIRECT_URIS: https://labkeeper.example.com/callback
       MIN_IDP_MASTER_KEY: "paste-output-of-openssl-rand-base64-32-here"
+      MIN_IDP_ADMIN_PASSWORD: "change-me"
+      MIN_IDP_SMTP_ENABLED: "true"
+      MIN_IDP_SMTP_HOST: "smtp.example.com"
+      MIN_IDP_SMTP_USERNAME: "your-smtp-user"
+      MIN_IDP_SMTP_PASSWORD: "your-smtp-password"
+      MIN_IDP_SMTP_FROM: "noreply@example.com"

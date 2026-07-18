@@ -1,21 +1,35 @@
 services:
   min-idp:
-    image: ghcr.io/ricardoalcantara/min-idp:v0.3.0-alpha
+    image: ghcr.io/ricardoalcantara/min-idp:v0.5.0-alpha
+    hostname: min-idp
     ports:
       - "8081:8081"
     volumes:
       - min-idp-data:/app/data
     environment:
+      MINSTACK_HOST: "0.0.0.0"
       MINSTACK_PORT: 8081
       MINSTACK_LOG_LEVEL: info
-      MINSTACK_LOG_FORMAT: json
-      MINSTACK_CORS_ORIGIN: http://localhost:5173
-      MIN_IDP_EXTERNAL_URL: http://localhost:8081
+      MINSTACK_LOG_FORMAT: console
+      # Browser hostnames — add to /etc/hosts: 127.0.0.1 min-idp labkeeper
+      MINSTACK_CORS_ORIGIN: http://labkeeper:5173
+      MIN_IDP_EXTERNAL_URL: http://min-idp:8081
       MIN_IDP_DB_DRIVER: sqlite
       MIN_IDP_DB_DSN: /app/data/min-idp.db
-      # Generate with: openssl rand -base64 32
-      # Set the real value in docker-compose.override.yml (see docker-compose.override.example.yml)
+      # Set a real key in docker-compose.override.yml (see override.example)
       MIN_IDP_MASTER_KEY: "change-me-generate-with-openssl-rand-base64-32"
+      MIN_IDP_ADMIN_PASSWORD: admin
+      # First-run bootstrap app (OIDC). Created once on a fresh database.
+      MIN_IDP_BOOTSTRAP_SP_NAME: Default App
+      MIN_IDP_BOOTSTRAP_SP_REDIRECT_URIS: http://labkeeper:5173/callback
+      MIN_IDP_BOOTSTRAP_SP_CLIENT_ID: default
+      # Public SPA client: PKCE, no secret.
+      MIN_IDP_BOOTSTRAP_SP_PUBLIC: "true"
+      # SMTP — enable host/user/password/from in docker-compose.override.yml
+      MIN_IDP_SMTP_ENABLED: "false"
+      MIN_IDP_SMTP_PORT: 465
+      MIN_IDP_SMTP_FROM_NAME: min-idp
+      MIN_IDP_SMTP_TLS: ssl
 
 volumes:
   min-idp-data:
