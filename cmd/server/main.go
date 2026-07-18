@@ -4,6 +4,7 @@ import (
 	"github.com/go-minstack/go-minstack/core"
 	mgin "github.com/go-minstack/go-minstack/gin"
 	"github.com/ricardoalcantara/LabKeeper/internal/health"
+	"github.com/ricardoalcantara/LabKeeper/internal/inventory"
 	"github.com/ricardoalcantara/LabKeeper/internal/portalauth"
 )
 
@@ -14,5 +15,6 @@ func main() {
 
 	portalauth.Register(app)
 	health.Register(app)
+	inventory.Register(app)
 	app.Run()
 }

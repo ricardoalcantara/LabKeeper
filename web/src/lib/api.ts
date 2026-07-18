@@ -1,17 +1,23 @@
 import { apiUrl } from "./config"
 
-export type PingResponse = {
-  status: string
-  message: string
-  time: string
-  subject?: string
-  name?: string
-  roles?: string[]
-  claims?: Record<string, unknown>
+export type Host = {
+  id: string
+  subject: string
+  hostname: string
+  os?: string
+  ips?: string[]
+  remote_addr?: string
+  online: boolean
+  connected_at: string
+  last_seen: string
 }
 
-export async function fetchPing(accessToken: string): Promise<PingResponse> {
-  const response = await fetch(`${apiUrl().replace(/\/$/, "")}/api/ping`, {
+export type HostListResponse = {
+  hosts: Host[]
+}
+
+export async function fetchInventoryHosts(accessToken: string): Promise<HostListResponse> {
+  const response = await fetch(`${apiUrl().replace(/\/$/, "")}/api/inventory/hosts`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -19,8 +25,8 @@ export async function fetchPing(accessToken: string): Promise<PingResponse> {
 
   const body = await response.text()
   if (!response.ok) {
-    throw new Error(body || `API ping failed: ${response.status}`)
+    throw new Error(body || `Inventory hosts failed: ${response.status}`)
   }
 
-  return JSON.parse(body) as PingResponse
+  return JSON.parse(body) as HostListResponse
 }

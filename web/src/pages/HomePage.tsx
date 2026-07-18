@@ -1,5 +1,7 @@
 import { useEffect } from "react"
-import { PingResult } from "../components/PingResult"
+import { AppHeader } from "../components/AppHeader"
+import { HostList } from "../components/HostList"
+import { UserSummary } from "../components/UserSummary"
 import { isAuthenticated, loadSession, logout, startLogin } from "../lib/oidc"
 
 export function HomePage() {
@@ -20,27 +22,31 @@ export function HomePage() {
   }
 
   const session = loadSession()
+  const userinfo = session.userinfo as
+    | { name?: string; email?: string; preferred_username?: string; username?: string }
+    | undefined
 
   return (
-    <main className="card">
-      <header className="page-header">
-        <div>
-          <h1>LabKeeper Portal</h1>
-          <p className="sub">Authenticated home</p>
-        </div>
-        <button type="button" className="secondary" onClick={() => void logout()}>
-          Sign out
-        </button>
-      </header>
+    <main className="card wide">
+      <AppHeader
+        title="LabKeeper Admin"
+        subtitle="Inventory"
+        actions={
+          <button type="button" className="secondary" onClick={() => void logout()}>
+            Sign out
+          </button>
+        }
+      />
 
-      {session.userinfo ? (
-        <section>
-          <h2>Signed in as</h2>
-          <pre>{JSON.stringify(session.userinfo, null, 2)}</pre>
-        </section>
-      ) : null}
+      <UserSummary
+        name={userinfo?.name}
+        email={userinfo?.email}
+        username={userinfo?.preferred_username || userinfo?.username}
+      />
 
-      <PingResult accessToken={session.tokens!.access_token} />
+      <section className="inventory-section">
+        <HostList accessToken={session.tokens!.access_token} />
+      </section>
     </main>
   )
 }

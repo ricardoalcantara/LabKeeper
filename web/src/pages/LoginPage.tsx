@@ -8,8 +8,8 @@ export function LoginPage() {
 
   return (
     <main className="card">
-      <h1>LabKeeper Portal</h1>
-      <p className="sub">Sign in to manage your homelab.</p>
+      <h1>LabKeeper Admin</h1>
+      <p className="sub">Sign in to manage your Inventory.</p>
 
       <dl className="config">
         <dt>Issuer</dt>

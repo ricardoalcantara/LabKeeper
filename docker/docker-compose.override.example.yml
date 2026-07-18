@@ -10,11 +10,14 @@ services:
       # MINSTACK_CORS_ORIGIN: http://192.168.1.107:5173
       # MIN_IDP_EXTERNAL_URL: http://192.168.1.107:8081
       # MIN_IDP_BOOTSTRAP_SP_REDIRECT_URIS: http://192.168.1.107:5173/callback
+      # Also allowlist post_logout on the OIDC client:
+      #   http://192.168.1.107:5173/login
       #
       # Example domain and subdomain override:
       # MINSTACK_CORS_ORIGIN: https://labkeeper.example.com
       # MIN_IDP_EXTERNAL_URL: https://idp.example.com
       # MIN_IDP_BOOTSTRAP_SP_REDIRECT_URIS: https://labkeeper.example.com/callback
+      # post_logout_redirect_uris: https://labkeeper.example.com/login
       MIN_IDP_MASTER_KEY: "paste-output-of-openssl-rand-base64-32-here"
       MIN_IDP_ADMIN_PASSWORD: "change-me"
       MIN_IDP_SMTP_ENABLED: "true"

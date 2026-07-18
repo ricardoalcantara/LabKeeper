@@ -5,7 +5,10 @@ import (
 	"path/filepath"
 )
 
-const DefaultServerAddr = "127.0.0.1:0"
+const WebSocketPath = "/ws"
+
+// DefaultAgentAddr is the Server's dedicated mTLS WebSocket listen address for Agents.
+const DefaultAgentAddr = "127.0.0.1:8443"
 
 func ServerURLFilePath() string {
 	return filepath.Join(os.TempDir(), "labkeeper-server-url")

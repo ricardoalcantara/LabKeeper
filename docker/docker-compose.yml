@@ -25,6 +25,9 @@ services:
       MIN_IDP_BOOTSTRAP_SP_CLIENT_ID: default
       # Public SPA client: PKCE, no secret.
       MIN_IDP_BOOTSTRAP_SP_PUBLIC: "true"
+      # After bootstrap, allowlist Portal /login on the OIDC client
+      # (post_logout_redirect_uris). min-idp v0.5.0-alpha does not bootstrap
+      # this from env — set via admin API or SQL, e.g. http://labkeeper:5173/login
       # SMTP — enable host/user/password/from in docker-compose.override.yml
       MIN_IDP_SMTP_ENABLED: "false"
       MIN_IDP_SMTP_PORT: 465

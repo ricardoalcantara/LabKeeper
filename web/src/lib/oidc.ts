@@ -1,5 +1,5 @@
 import { sha256 } from "./sha256"
-import { clientId, issuer, redirectUri } from "./config"
+import { clientId, issuer, postLogoutRedirectUri, redirectUri } from "./config"
 
 const STORAGE_KEY = "labkeeper_portal"
 
@@ -126,7 +126,21 @@ export async function startLogin(): Promise<void> {
   window.location.href = `${doc.authorization_endpoint}?${params}`
 }
 
-export async function handleCallback(search: string): Promise<SessionData> {
+// The auth code is single-use; React StrictMode mounts effects twice in dev,
+// so concurrent calls for the same code must share one exchange.
+const pendingExchanges = new Map<string, Promise<SessionData>>()
+
+export function handleCallback(search: string): Promise<SessionData> {
+  const code = new URLSearchParams(search).get("code") ?? search
+  let exchange = pendingExchanges.get(code)
+  if (!exchange) {
+    exchange = doHandleCallback(search)
+    pendingExchanges.set(code, exchange)
+  }
+  return exchange
+}
+
+async function doHandleCallback(search: string): Promise<SessionData> {
   const params = new URLSearchParams(search)
   const error = params.get("error")
   if (error) {
@@ -192,8 +206,7 @@ export async function logout(): Promise<void> {
 
   const doc = await discover()
   const logoutURL = new URL(doc.end_session_endpoint ?? `${issuer().replace(/\/$/, "")}/oauth2/logout`)
-  const postLogoutRedirect = new URL("/login", window.location.origin).toString()
-  logoutURL.searchParams.set("post_logout_redirect_uri", postLogoutRedirect)
+  logoutURL.searchParams.set("post_logout_redirect_uri", postLogoutRedirectUri())
   if (session.tokens?.id_token) {
     logoutURL.searchParams.set("id_token_hint", session.tokens.id_token)
   }
