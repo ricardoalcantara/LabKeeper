@@ -70,6 +70,7 @@ SPA (`web/.env`):
 - Do not mix agent POC auth with portal OIDC auth
 - Do not hide route registration inside constructors
 - Do not commit `web/.env` or `docker-compose.override.yml`
+- **NEVER** add `Co-Authored-By` / `Co-authored-by` (or any co-author trailer) to git commits — not for Cursor, AI agents, bots, or tools. If a hook or tool injects one, strip it before committing or amend it out before push.
 
 ## Local development
 
