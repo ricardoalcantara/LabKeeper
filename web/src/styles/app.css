@@ -91,6 +91,10 @@ body {
   white-space: nowrap;
 }
 
+.row-muted td {
+  opacity: 0.55;
+}
+
 .mono-cell {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.8rem;

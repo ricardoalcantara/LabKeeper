@@ -5,6 +5,8 @@ import { SessionExpiredError } from "../lib/oidc"
 type Props = {
   onCreate: () => void
   onEdit: (host: Host) => void
+  onDiscover?: () => void
+  discoveryEnabled?: boolean
   refreshKey: number
 }
 
@@ -30,7 +32,7 @@ function showHostnameSub(host: Host): boolean {
   return Boolean(label && hn && label !== hn)
 }
 
-export function HostList({ onCreate, onEdit, refreshKey }: Props) {
+export function HostList({ onCreate, onEdit, onDiscover, discoveryEnabled, refreshKey }: Props) {
   const [hosts, setHosts] = useState<Host[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -91,9 +93,16 @@ export function HostList({ onCreate, onEdit, refreshKey }: Props) {
     <section>
       <div className="section-toolbar">
         <h2>Inventory hosts</h2>
-        <button type="button" onClick={onCreate}>
-          Add host
-        </button>
+        <div className="header-actions">
+          {discoveryEnabled && onDiscover ? (
+            <button type="button" onClick={onDiscover}>
+              Discover
+            </button>
+          ) : null}
+          <button type="button" className="secondary" onClick={onCreate}>
+            Add host
+          </button>
+        </div>
       </div>
 
       {error ? <p className="error">{error}</p> : null}

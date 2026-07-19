@@ -243,6 +243,26 @@ func (s *Service) Delete(id string) error {
 	return s.hosts.Delete(id)
 }
 
+// KnownAddresses returns address/IP strings already present in Inventory.
+func (s *Service) KnownAddresses() (map[string]struct{}, error) {
+	rows, err := s.hosts.List()
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]struct{})
+	for _, row := range rows {
+		if addr := strings.TrimSpace(row.Address); addr != "" {
+			known[addr] = struct{}{}
+		}
+		for _, ip := range decodeIPs(row.IPs) {
+			if ip = strings.TrimSpace(ip); ip != "" {
+				known[ip] = struct{}{}
+			}
+		}
+	}
+	return known, nil
+}
+
 func (s *Service) ensureCredential(id string) error {
 	if _, err := s.credentials.GetByID(id); err != nil {
 		if errors.Is(err, credrepo.ErrNotFound) {

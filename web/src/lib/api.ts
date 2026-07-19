@@ -88,6 +88,31 @@ export type GeneratedSSHKey = {
   public_key: string
 }
 
+export type DiscoveryNetwork = {
+  iface: string
+  cidr: string
+  address: string
+}
+
+export type DiscoveryStatus = {
+  enabled: boolean
+  networks: DiscoveryNetwork[]
+}
+
+export type DiscoveryCandidate = {
+  ip: string
+  hostname?: string
+  rtt_ms?: number
+  open_ports?: number[]
+  methods?: string[]
+  already_known: boolean
+}
+
+export type DiscoveryScanResult = {
+  cidr: string
+  candidates: DiscoveryCandidate[]
+}
+
 function apiBase(): string {
   return apiUrl().replace(/\/$/, "")
 }
@@ -194,6 +219,26 @@ export async function deleteHost(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error(await readError(response, "Delete host failed"))
   }
+}
+
+export async function fetchDiscoveryStatus(): Promise<DiscoveryStatus> {
+  const response = await apiFetch("/api/inventory/discovery/status")
+  if (!response.ok) {
+    throw new Error(await readError(response, "Discovery status failed"))
+  }
+  return JSON.parse(await response.text()) as DiscoveryStatus
+}
+
+export async function scanDiscovery(cidr: string): Promise<DiscoveryScanResult> {
+  const response = await apiFetch("/api/inventory/discovery/scan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cidr }),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, "Discovery scan failed"))
+  }
+  return JSON.parse(await response.text()) as DiscoveryScanResult
 }
 
 export async function fetchCredentials(): Promise<CredentialListResponse> {

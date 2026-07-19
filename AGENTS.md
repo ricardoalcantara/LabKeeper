@@ -22,6 +22,7 @@ Do **not** call Inventory items “servers” — **Server** is the LabKeeper Ad
 - `cmd/agent/` — LabKeeper Agent
 - `internal/health/` — Portal health/ping API
 - `internal/inventory/` — Inventory Hosts (DB), Agent hub, Hosts CRUD API
+- `internal/discovery/` — private LAN discovery (ICMP + TCP; JWT; candidates only)
 - `internal/credentials/` — encrypted Credentials vault (password / SSH key)
 - `internal/crypto/` — `CryptoService` (AES-GCM via `LABKEEPER_MASTER_KEY`)
 - `internal/storage/` — multi-driver GORM (`LABKEEPER_DB_*`)
@@ -91,6 +92,7 @@ Agent:
 - `/` auto-redirects to SSO when unauthenticated; signed-in home shows Inventory Hosts (CRUD + credential assign)
 - `/credentials` manages the encrypted Credentials vault
 - Inventory Hosts are persisted (`hosts` table); Agents upsert by `agent_fingerprint` (client cert). Optional `credential_id` links one vault credential for future SSH. `cpu_cores` / `memory_bytes` are reserved for Agent discovery.
+- LAN **Discover** appears only when the Server has a private (RFC1918) interface. Scans run on the Server (`/api/inventory/discovery/*`), max `/23`, ICMP (`ping`) + TCP `22/80/443/445`; results are candidates — never auto-added.
 - `/login` stays on page and shows the SSO button (no auto redirect)
 - `/callback` completes OIDC and returns to `/`
 - Logout clears local session and uses min-idp RP logout with `post_logout_redirect_uri` = Portal `/login` (allowlisted on the OIDC client)

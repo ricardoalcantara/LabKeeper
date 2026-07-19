@@ -23,8 +23,11 @@ Minimal authenticated admin app:
 - **Server** — go-minstack API that validates JWTs, persists Inventory Hosts + encrypted Credentials
 - `GET /api/ping` — auth check
 - `/api/inventory/hosts` — Inventory CRUD (JWT); Agents also upsert Hosts over mTLS
+- `/api/inventory/discovery` — private LAN scan (JWT; Server-local; candidates only, no auto-add)
 - `/api/credentials` — encrypted vault (password / SSH key; JWT; secrets never returned on GET)
 - Hosts may link one vault credential (`credential_id`) for future SSH; `cpu_cores` / `memory_bytes` reserved for Agent discovery
+
+Discovery is enabled only when the Server has a private RFC1918 address. Scans accept interface CIDRs or a custom private CIDR up to `/23`, using ICMP (`ping`) plus TCP probes. The Portal **Discover** button prefills Add host — nothing is enrolled automatically.
 
 ### Run Admin locally
 
@@ -115,12 +118,12 @@ Expected flow: Agent connects → durable Inventory Host (UUID) appears online, 
 - [x] Server DB (sqlite/mysql/postgres) + goose migrations
 - [x] Persist Inventory Hosts + Portal CRUD
 - [x] Assign credential → Host (`credential_id`)
+- [x] Private LAN discovery (candidates; manual add)
 
 ### Next
 - [ ] Server-side SSH login/probe with vault credentials
 - [ ] Agent hardware discovery (`cpu_cores` / `memory_bytes`)
 - [ ] Per-agent certificates / enrollment
-- [ ] Network / LAN discovery for candidate Hosts
 - [ ] Serve Portal from Server (or reverse proxy) for non-dev deploys
 - [ ] Inventory groups (Ansible-style)
 
