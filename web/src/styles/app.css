@@ -127,6 +127,17 @@ body {
   font-size: 0.85rem;
 }
 
+.form-inline-actions {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+
+.form-hint {
+  margin: 0;
+  max-width: 36rem;
+}
+
 .host-table {
   width: 100%;
   border-collapse: collapse;

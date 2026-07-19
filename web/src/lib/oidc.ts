@@ -2,6 +2,8 @@ import { sha256 } from "./sha256"
 import { clientId, issuer, postLogoutRedirectUri, redirectUri } from "./config"
 
 const STORAGE_KEY = "labkeeper_portal"
+/** Refresh a minute before access token exp to avoid mid-request 401s. */
+const EXPIRY_SKEW_MS = 60_000
 
 export type OIDCDiscovery = {
   issuer: string
@@ -17,6 +19,8 @@ export type TokenSet = {
   refresh_token?: string
   token_type: string
   expires_in: number
+  /** Epoch ms when access_token expires (set client-side). */
+  expires_at?: number
 }
 
 export type UserInfo = {
@@ -36,6 +40,13 @@ type PendingAuth = {
 export type SessionData = {
   tokens?: TokenSet
   userinfo?: UserInfo
+}
+
+export class SessionExpiredError extends Error {
+  constructor(message = "Session expired") {
+    super(message)
+    this.name = "SessionExpiredError"
+  }
 }
 
 function randomString(bytes = 32): string {
@@ -98,8 +109,67 @@ export function clearSession(): void {
   sessionStorage.removeItem(pendingKey())
 }
 
+/** Prefer client expires_at; fall back to JWT exp for older sessions. */
+export function accessTokenExpiresAt(tokens: TokenSet): number | null {
+  if (typeof tokens.expires_at === "number" && tokens.expires_at > 0) {
+    return tokens.expires_at
+  }
+  const exp = readJwtExpMs(tokens.access_token)
+  if (exp != null) {
+    return exp
+  }
+  return null
+}
+
+function readJwtExpMs(accessToken: string): number | null {
+  try {
+    const parts = accessToken.split(".")
+    if (parts.length < 2) {
+      return null
+    }
+    const json = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))
+    const payload = JSON.parse(json) as { exp?: number }
+    if (typeof payload.exp === "number") {
+      return payload.exp * 1000
+    }
+  } catch {
+    // ignore malformed token
+  }
+  return null
+}
+
+export function isAccessTokenFresh(skewMs = EXPIRY_SKEW_MS): boolean {
+  const tokens = loadSession().tokens
+  if (!tokens?.access_token) {
+    return false
+  }
+  const expiresAt = accessTokenExpiresAt(tokens)
+  if (expiresAt == null) {
+    // Unknown expiry — allow until API returns 401.
+    return true
+  }
+  return Date.now() < expiresAt - skewMs
+}
+
 export function isAuthenticated(): boolean {
-  return Boolean(loadSession().tokens?.access_token)
+  const tokens = loadSession().tokens
+  if (!tokens?.access_token) {
+    return false
+  }
+  if (isAccessTokenFresh()) {
+    return true
+  }
+  // Stale access token is OK if we can refresh silently.
+  return Boolean(tokens.refresh_token)
+}
+
+function stampExpiry(tokens: TokenSet): TokenSet {
+  const expiresIn = tokens.expires_in > 0 ? tokens.expires_in : 3600
+  return {
+    ...tokens,
+    expires_in: expiresIn,
+    expires_at: Date.now() + expiresIn * 1000,
+  }
 }
 
 export async function startLogin(): Promise<void> {
@@ -182,7 +252,7 @@ async function doHandleCallback(search: string): Promise<SessionData> {
     throw new Error(`Token exchange failed: ${res.status} ${text}`)
   }
 
-  const tokens = (await res.json()) as TokenSet
+  const tokens = stampExpiry((await res.json()) as TokenSet)
   sessionStorage.removeItem(pendingKey())
 
   let userinfo: UserInfo | undefined
@@ -198,6 +268,84 @@ async function doHandleCallback(search: string): Promise<SessionData> {
   const session: SessionData = { tokens, userinfo }
   saveSession(session)
   return session
+}
+
+let refreshInFlight: Promise<TokenSet> | null = null
+
+/**
+ * Exchange refresh_token for a new access_token (min-idp rotates refresh tokens).
+ * Concurrent callers share one in-flight refresh.
+ */
+export async function refreshAccessToken(): Promise<TokenSet> {
+  if (refreshInFlight) {
+    return refreshInFlight
+  }
+  refreshInFlight = doRefreshAccessToken().finally(() => {
+    refreshInFlight = null
+  })
+  return refreshInFlight
+}
+
+async function doRefreshAccessToken(): Promise<TokenSet> {
+  const session = loadSession()
+  const refreshToken = session.tokens?.refresh_token
+  if (!refreshToken) {
+    throw new SessionExpiredError("No refresh token")
+  }
+
+  const doc = await discover()
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: clientId(),
+    refresh_token: refreshToken,
+  })
+
+  const res = await fetch(doc.token_endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  })
+
+  if (!res.ok) {
+    clearSession()
+    throw new SessionExpiredError(`Refresh failed: ${res.status}`)
+  }
+
+  const next = stampExpiry((await res.json()) as TokenSet)
+  // Keep prior refresh_token only if IdP omitted a new one (min-idp returns a new one).
+  const tokens: TokenSet = {
+    ...session.tokens,
+    ...next,
+    refresh_token: next.refresh_token || session.tokens?.refresh_token,
+  }
+  saveSession({ ...session, tokens })
+  return tokens
+}
+
+/** Return a usable access token, refreshing silently when near expiry. */
+export async function ensureAccessToken(): Promise<string> {
+  const session = loadSession()
+  if (!session.tokens?.access_token) {
+    throw new SessionExpiredError("Not signed in")
+  }
+  if (isAccessTokenFresh()) {
+    return session.tokens.access_token
+  }
+  if (!session.tokens.refresh_token) {
+    clearSession()
+    throw new SessionExpiredError("Access token expired")
+  }
+  const tokens = await refreshAccessToken()
+  return tokens.access_token
+}
+
+/**
+ * Clear local session and start OIDC login again.
+ * Used after refresh failure or unrecoverable API 401.
+ */
+export async function handleSessionExpired(): Promise<void> {
+  clearSession()
+  await startLogin()
 }
 
 export async function logout(): Promise<void> {

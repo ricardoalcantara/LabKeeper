@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react"
 import { fetchInventoryHosts, type Host } from "../lib/api"
+import { SessionExpiredError } from "../lib/oidc"
 
-type Props = {
-  accessToken: string
-}
-
-export function HostList({ accessToken }: Props) {
+export function HostList() {
   const [hosts, setHosts] = useState<Host[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -15,15 +12,16 @@ export function HostList({ accessToken }: Props) {
 
     const load = async () => {
       try {
-        const response = await fetchInventoryHosts(accessToken)
+        const response = await fetchInventoryHosts()
         if (!cancelled) {
           setHosts(response.hosts)
           setError(null)
         }
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load inventory")
+        if (cancelled || err instanceof SessionExpiredError) {
+          return
         }
+        setError(err instanceof Error ? err.message : "Failed to load inventory")
       } finally {
         if (!cancelled) {
           setLoading(false)
@@ -40,7 +38,7 @@ export function HostList({ accessToken }: Props) {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [accessToken])
+  }, [])
 
   if (loading) {
     return <p>Loading inventory…</p>

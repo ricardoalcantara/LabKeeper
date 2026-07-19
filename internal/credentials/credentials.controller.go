@@ -49,6 +49,15 @@ func (c *Controller) create(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, item)
 }
 
+func (c *Controller) generateSSHKey(ctx *gin.Context) {
+	item, err := c.service.GenerateSSHKey()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, item)
+}
+
 func (c *Controller) update(ctx *gin.Context) {
 	var req dto.UpdateCredentialRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {

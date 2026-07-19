@@ -1,4 +1,10 @@
 import { apiUrl } from "./config"
+import {
+  ensureAccessToken,
+  handleSessionExpired,
+  refreshAccessToken,
+  SessionExpiredError,
+} from "./oidc"
 
 export type Host = {
   id: string
@@ -45,8 +51,9 @@ export type UpdateCredentialInput = {
   private_key?: string
 }
 
-function authHeaders(accessToken: string): HeadersInit {
-  return { Authorization: `Bearer ${accessToken}` }
+export type GeneratedSSHKey = {
+  private_key: string
+  public_key: string
 }
 
 function apiBase(): string {
@@ -69,38 +76,65 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return body
 }
 
-export async function fetchInventoryHosts(accessToken: string): Promise<HostListResponse> {
-  const response = await fetch(`${apiBase()}/api/inventory/hosts`, {
-    headers: authHeaders(accessToken),
-  })
+/**
+ * Authenticated API fetch: refreshes access token when near expiry,
+ * retries once on 401 after refresh, then redirects to SSO if still unauthorized.
+ */
+async function apiFetch(path: string, init: RequestInit = {}, retried = false): Promise<Response> {
+  let accessToken: string
+  try {
+    accessToken = await ensureAccessToken()
+  } catch (err) {
+    if (err instanceof SessionExpiredError) {
+      await handleSessionExpired()
+    }
+    throw err
+  }
 
+  const headers = new Headers(init.headers)
+  headers.set("Authorization", `Bearer ${accessToken}`)
+
+  const response = await fetch(`${apiBase()}${path}`, { ...init, headers })
+
+  if (response.status !== 401) {
+    return response
+  }
+
+  if (retried) {
+    await handleSessionExpired()
+    throw new SessionExpiredError("Unauthorized after refresh")
+  }
+
+  try {
+    await refreshAccessToken()
+  } catch {
+    await handleSessionExpired()
+    throw new SessionExpiredError("Unauthorized")
+  }
+
+  return apiFetch(path, init, true)
+}
+
+export async function fetchInventoryHosts(): Promise<HostListResponse> {
+  const response = await apiFetch("/api/inventory/hosts")
   if (!response.ok) {
     throw new Error(await readError(response, "Inventory hosts failed"))
   }
-
   return JSON.parse(await response.text()) as HostListResponse
 }
 
-export async function fetchCredentials(accessToken: string): Promise<CredentialListResponse> {
-  const response = await fetch(`${apiBase()}/api/credentials`, {
-    headers: authHeaders(accessToken),
-  })
+export async function fetchCredentials(): Promise<CredentialListResponse> {
+  const response = await apiFetch("/api/credentials")
   if (!response.ok) {
     throw new Error(await readError(response, "Credentials list failed"))
   }
   return JSON.parse(await response.text()) as CredentialListResponse
 }
 
-export async function createCredential(
-  accessToken: string,
-  input: CreateCredentialInput,
-): Promise<Credential> {
-  const response = await fetch(`${apiBase()}/api/credentials`, {
+export async function createCredential(input: CreateCredentialInput): Promise<Credential> {
+  const response = await apiFetch("/api/credentials", {
     method: "POST",
-    headers: {
-      ...authHeaders(accessToken),
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   })
   if (!response.ok) {
@@ -109,17 +143,10 @@ export async function createCredential(
   return JSON.parse(await response.text()) as Credential
 }
 
-export async function updateCredential(
-  accessToken: string,
-  id: string,
-  input: UpdateCredentialInput,
-): Promise<Credential> {
-  const response = await fetch(`${apiBase()}/api/credentials/${encodeURIComponent(id)}`, {
+export async function updateCredential(id: string, input: UpdateCredentialInput): Promise<Credential> {
+  const response = await apiFetch(`/api/credentials/${encodeURIComponent(id)}`, {
     method: "PUT",
-    headers: {
-      ...authHeaders(accessToken),
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   })
   if (!response.ok) {
@@ -128,12 +155,21 @@ export async function updateCredential(
   return JSON.parse(await response.text()) as Credential
 }
 
-export async function deleteCredential(accessToken: string, id: string): Promise<void> {
-  const response = await fetch(`${apiBase()}/api/credentials/${encodeURIComponent(id)}`, {
+export async function deleteCredential(id: string): Promise<void> {
+  const response = await apiFetch(`/api/credentials/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: authHeaders(accessToken),
   })
   if (!response.ok) {
     throw new Error(await readError(response, "Delete credential failed"))
   }
+}
+
+export async function generateSSHKey(): Promise<GeneratedSSHKey> {
+  const response = await apiFetch("/api/credentials/ssh-keygen", {
+    method: "POST",
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, "SSH key generation failed"))
+  }
+  return JSON.parse(await response.text()) as GeneratedSSHKey
 }

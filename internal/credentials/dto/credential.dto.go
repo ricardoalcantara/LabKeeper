@@ -30,3 +30,9 @@ type UpdateCredentialRequest struct {
 	Password   string `json:"password"`
 	PrivateKey string `json:"private_key"`
 }
+
+// GenerateSSHKeyResponse is returned once by ssh-keygen; the private key is not stored.
+type GenerateSSHKeyResponse struct {
+	PrivateKey string `json:"private_key"`
+	PublicKey  string `json:"public_key"`
+}

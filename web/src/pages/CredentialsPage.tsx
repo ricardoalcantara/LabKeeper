@@ -10,6 +10,7 @@ import { isAuthenticated, loadSession, logout, startLogin } from "../lib/oidc"
 export function CredentialsPage() {
   const [mode, setMode] = useState<"list" | "create" | "edit">("list")
   const [editing, setEditing] = useState<Credential | null>(null)
+  const [generateSSHOnMount, setGenerateSSHOnMount] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -32,7 +33,6 @@ export function CredentialsPage() {
   const userinfo = session.userinfo as
     | { name?: string; email?: string; preferred_username?: string; username?: string }
     | undefined
-  const accessToken = session.tokens!.access_token
 
   return (
     <main className="card wide">
@@ -59,27 +59,35 @@ export function CredentialsPage() {
 
       {mode === "list" ? (
         <CredentialList
-          accessToken={accessToken}
           refreshKey={refreshKey}
           onCreate={() => {
             setEditing(null)
+            setGenerateSSHOnMount(false)
+            setMode("create")
+          }}
+          onGenerateSSH={() => {
+            setEditing(null)
+            setGenerateSSHOnMount(true)
             setMode("create")
           }}
           onEdit={(credential) => {
             setEditing(credential)
+            setGenerateSSHOnMount(false)
             setMode("edit")
           }}
         />
       ) : (
         <CredentialForm
-          accessToken={accessToken}
           credential={mode === "edit" ? editing : null}
+          generateSSHOnMount={mode === "create" && generateSSHOnMount}
           onCancel={() => {
             setEditing(null)
+            setGenerateSSHOnMount(false)
             setMode("list")
           }}
           onSaved={() => {
             setEditing(null)
+            setGenerateSSHOnMount(false)
             setMode("list")
             setRefreshKey((value) => value + 1)
           }}

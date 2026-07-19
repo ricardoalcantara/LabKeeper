@@ -1,6 +1,9 @@
 package credentials
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
@@ -116,6 +119,31 @@ func (s *Service) Update(id string, req dto.UpdateCredentialRequest) (*dto.Crede
 
 func (s *Service) Delete(id string) error {
 	return s.repo.Delete(id)
+}
+
+// GenerateSSHKey creates an Ed25519 OpenSSH key pair. Nothing is persisted.
+func (s *Service) GenerateSSHKey() (*dto.GenerateSSHKeyResponse, error) {
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("generate ed25519 key: %w", err)
+	}
+
+	block, err := ssh.MarshalPrivateKey(priv, "labkeeper")
+	if err != nil {
+		return nil, fmt.Errorf("marshal private key: %w", err)
+	}
+	privatePEM := string(pem.EncodeToMemory(block))
+
+	signer, err := ssh.NewSignerFromKey(priv)
+	if err != nil {
+		return nil, fmt.Errorf("signer from key: %w", err)
+	}
+	publicKey := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
+
+	return &dto.GenerateSSHKeyResponse{
+		PrivateKey: privatePEM,
+		PublicKey:  publicKey,
+	}, nil
 }
 
 func (s *Service) prepareSecret(credType, password, privateKey string, required bool) (secret []byte, publicKey string, err error) {

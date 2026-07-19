@@ -51,7 +51,7 @@ export function HomePage() {
       />
 
       <section className="inventory-section">
-        <HostList accessToken={session.tokens!.access_token} />
+        <HostList />
       </section>
     </main>
   )

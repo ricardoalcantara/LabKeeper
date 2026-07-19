@@ -4,15 +4,16 @@ import {
   fetchCredentials,
   type Credential,
 } from "../lib/api"
+import { SessionExpiredError } from "../lib/oidc"
 
 type Props = {
-  accessToken: string
   onEdit: (credential: Credential) => void
   onCreate: () => void
+  onGenerateSSH: () => void
   refreshKey: number
 }
 
-export function CredentialList({ accessToken, onEdit, onCreate, refreshKey }: Props) {
+export function CredentialList({ onEdit, onCreate, onGenerateSSH, refreshKey }: Props) {
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -23,15 +24,16 @@ export function CredentialList({ accessToken, onEdit, onCreate, refreshKey }: Pr
     ;(async () => {
       setLoading(true)
       try {
-        const response = await fetchCredentials(accessToken)
+        const response = await fetchCredentials()
         if (!cancelled) {
           setCredentials(response.credentials)
           setError(null)
         }
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load credentials")
+        if (cancelled || err instanceof SessionExpiredError) {
+          return
         }
+        setError(err instanceof Error ? err.message : "Failed to load credentials")
       } finally {
         if (!cancelled) {
           setLoading(false)
@@ -42,16 +44,19 @@ export function CredentialList({ accessToken, onEdit, onCreate, refreshKey }: Pr
     return () => {
       cancelled = true
     }
-  }, [accessToken, refreshKey])
+  }, [refreshKey])
 
   const handleDelete = async (credential: Credential) => {
     if (!window.confirm(`Delete credential “${credential.name}”?`)) {
       return
     }
     try {
-      await deleteCredential(accessToken, credential.id)
+      await deleteCredential(credential.id)
       setCredentials((current) => current.filter((item) => item.id !== credential.id))
     } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        return
+      }
       setError(err instanceof Error ? err.message : "Delete failed")
     }
   }
@@ -64,15 +69,23 @@ export function CredentialList({ accessToken, onEdit, onCreate, refreshKey }: Pr
     <section>
       <div className="section-toolbar">
         <h2>Stored credentials</h2>
-        <button type="button" onClick={onCreate}>
-          Add credential
-        </button>
+        <div className="header-actions">
+          <button type="button" onClick={onGenerateSSH}>
+            Generate SSH key
+          </button>
+          <button type="button" className="secondary" onClick={onCreate}>
+            Add credential
+          </button>
+        </div>
       </div>
 
       {error ? <p className="error">{error}</p> : null}
 
       {credentials.length === 0 ? (
-        <p className="sub">No credentials yet. Add a password or SSH key for future Host access.</p>
+        <p className="sub">
+          No credentials yet. Generate an SSH key for LabKeeper to hold, or add a password / existing
+          key.
+        </p>
       ) : (
         <table className="host-table">
           <thead>
