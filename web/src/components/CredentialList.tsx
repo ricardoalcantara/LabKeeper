@@ -93,6 +93,8 @@ export function CredentialList({ onEdit, onCreate, onGenerateSSH, refreshKey }: 
               <th>Name</th>
               <th>Type</th>
               <th>Username</th>
+              <th>Become</th>
+              <th>Flags</th>
               <th>Public key</th>
               <th />
             </tr>
@@ -103,6 +105,19 @@ export function CredentialList({ onEdit, onCreate, onGenerateSSH, refreshKey }: 
                 <td>{credential.name}</td>
                 <td>{credential.type === "ssh_key" ? "SSH key" : "Password"}</td>
                 <td>{credential.username}</td>
+                <td>
+                  {credential.become_method === "none"
+                    ? "—"
+                    : `${credential.become_method} → ${credential.become_user || "root"}`}
+                </td>
+                <td className="sub">
+                  {[
+                    credential.has_passphrase ? "passphrase" : null,
+                    credential.has_become_secret ? "become secret" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "—"}
+                </td>
                 <td className="mono-cell">
                   {credential.public_key ? credential.public_key.slice(0, 48) + "…" : "—"}
                 </td>

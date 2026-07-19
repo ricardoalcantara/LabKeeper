@@ -1,13 +1,17 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS credentials (
-    id                TEXT PRIMARY KEY,
-    created_at        DATETIME NOT NULL,
-    updated_at        DATETIME NOT NULL,
-    name              TEXT NOT NULL,
-    type              TEXT NOT NULL,
-    username          TEXT NOT NULL,
-    secret_ciphertext BLOB NOT NULL,
-    public_key        TEXT
+    id                       TEXT PRIMARY KEY,
+    created_at               DATETIME NOT NULL,
+    updated_at               DATETIME NOT NULL,
+    name                     TEXT NOT NULL,
+    type                     TEXT NOT NULL,
+    username                 TEXT NOT NULL,
+    secret_ciphertext        BLOB NOT NULL,
+    public_key               TEXT,
+    passphrase_ciphertext    BLOB,
+    become_method            TEXT NOT NULL DEFAULT 'none',
+    become_user              TEXT NOT NULL DEFAULT '',
+    become_secret_ciphertext BLOB
 );
 
 CREATE INDEX IF NOT EXISTS idx_credentials_type ON credentials(type);

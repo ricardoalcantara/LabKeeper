@@ -41,7 +41,8 @@ func (r *CredentialRepository) Create(row *entities.Credential) error {
 }
 
 func (r *CredentialRepository) Update(row *entities.Credential) error {
-	return r.db.Save(row).Error
+	// Select all columns so nil passphrase/become ciphertext persist as NULL.
+	return r.db.Select("*").Updates(row).Error
 }
 
 func (r *CredentialRepository) Delete(id string) error {

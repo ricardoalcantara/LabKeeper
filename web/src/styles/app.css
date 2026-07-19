@@ -142,6 +142,23 @@ body {
   max-width: 36rem;
 }
 
+.form-section-title {
+  margin: 0.5rem 0 0;
+  font-size: 1.05rem;
+}
+
+.checkbox-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400 !important;
+}
+
+.checkbox-row input {
+  width: auto;
+}
+
 .host-table {
   width: 100%;
   border-collapse: collapse;

@@ -84,7 +84,11 @@ func writeServiceError(ctx *gin.Context, err error) {
 	switch {
 	case errors.Is(err, repositories.ErrNotFound):
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "credential not found"})
-	case errors.Is(err, ErrInvalidType), errors.Is(err, ErrMissingSecret), errors.Is(err, ErrInvalidKey):
+	case errors.Is(err, ErrInvalidType),
+		errors.Is(err, ErrMissingSecret),
+		errors.Is(err, ErrInvalidKey),
+		errors.Is(err, ErrInvalidBecomeMethod),
+		errors.Is(err, ErrPassphraseNotSSH):
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

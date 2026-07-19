@@ -23,7 +23,7 @@ Do **not** call Inventory items “servers” — **Server** is the LabKeeper Ad
 - `internal/health/` — Portal health/ping API
 - `internal/inventory/` — Inventory Hosts (DB), Agent hub, Hosts CRUD API
 - `internal/discovery/` — private LAN discovery (ICMP + TCP; JWT; candidates only)
-- `internal/credentials/` — encrypted Credentials vault (password / SSH key)
+- `internal/credentials/` — encrypted Credentials vault (password / SSH key + optional key passphrase + Ansible-style become)
 - `internal/crypto/` — `CryptoService` (AES-GCM via `LABKEEPER_MASTER_KEY`)
 - `internal/storage/` — multi-driver GORM (`LABKEEPER_DB_*`)
 - `migrations/` — goose SQL migrations (embedded)
@@ -90,8 +90,9 @@ Agent:
 ### Auth UX rules
 
 - `/` auto-redirects to SSO when unauthenticated; signed-in home shows Inventory Hosts (CRUD + credential assign)
-- `/credentials` manages the encrypted Credentials vault
+- `/credentials` manages the encrypted Credentials vault (login secret; optional SSH key passphrase; optional `become_method` / `become_user` / become secret). List/get never return secrets — only `has_passphrase` / `has_become_secret` flags.
 - Inventory Hosts are persisted (`hosts` table); Agents upsert by `agent_fingerprint` (client cert). Optional `credential_id` links one vault credential for future SSH. `cpu_cores` / `memory_bytes` are reserved for Agent discovery.
+- After editing embedded goose SQL in `migrations/00001_init.sql`, wipe local SQLite with `rm -rf data/` before restart.
 - LAN **Discover** appears only when the Server has a private (RFC1918) interface. Scans run on the Server (`/api/inventory/discovery/*`), max `/23`, ICMP (`ping`) + TCP `22/80/443/445`; results are candidates — never auto-added.
 - `/login` stays on page and shows the SSO button (no auto redirect)
 - `/callback` completes OIDC and returns to `/`

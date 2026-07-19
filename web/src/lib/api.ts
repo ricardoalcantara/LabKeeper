@@ -54,12 +54,18 @@ export type UpdateHostInput = {
   credential_id?: string
 }
 
+export type BecomeMethod = "none" | "sudo" | "su"
+
 export type Credential = {
   id: string
   name: string
   type: "password" | "ssh_key"
   username: string
   public_key?: string
+  has_passphrase: boolean
+  become_method: BecomeMethod
+  become_user?: string
+  has_become_secret: boolean
   created_at: string
   updated_at: string
 }
@@ -74,6 +80,10 @@ export type CreateCredentialInput = {
   username: string
   password?: string
   private_key?: string
+  passphrase?: string
+  become_method?: BecomeMethod
+  become_user?: string
+  become_secret?: string
 }
 
 export type UpdateCredentialInput = {
@@ -81,6 +91,10 @@ export type UpdateCredentialInput = {
   username?: string
   password?: string
   private_key?: string
+  passphrase?: string | null
+  become_method?: BecomeMethod
+  become_user?: string
+  become_secret?: string | null
 }
 
 export type GeneratedSSHKey = {
