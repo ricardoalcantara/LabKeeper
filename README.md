@@ -20,10 +20,11 @@ Do not call Inventory items “servers” — that word means the **Server** bin
 Minimal authenticated admin app:
 
 - **Portal** — React SPA with OIDC PKCE via [min-idp](https://github.com/ricardoalcantara/min-idp)
-- **Server** — go-minstack API that validates JWTs, maintains Inventory from Agents, and stores encrypted Credentials
+- **Server** — go-minstack API that validates JWTs, persists Inventory Hosts + encrypted Credentials
 - `GET /api/ping` — auth check
-- `GET /api/inventory/hosts` — list Hosts (JWT)
+- `/api/inventory/hosts` — Inventory CRUD (JWT); Agents also upsert Hosts over mTLS
 - `/api/credentials` — encrypted vault (password / SSH key; JWT; secrets never returned on GET)
+- Hosts may link one vault credential (`credential_id`) for future SSH; `cpu_cores` / `memory_bytes` reserved for Agent discovery
 
 ### Run Admin locally
 
@@ -59,7 +60,7 @@ cp .env.example .env
 go run ./cmd/server
 ```
 
-Server listens for Portal HTTP (`MINSTACK_HTTP_PORT`, default `8080`) and Agents on mTLS WebSocket (`LABKEEPER_AGENT_ADDR`). It runs goose migrations, opens the DB, and writes the Agent URL to `$TMPDIR/labkeeper-server-url`. Wipe local SQLite with `rm -rf data/`.
+Server listens for Portal HTTP (`MINSTACK_HTTP_PORT`, default `8080`) and Agents on mTLS WebSocket (`LABKEEPER_AGENT_ADDR`). It runs goose migrations, opens the DB, and writes the Agent URL to `$TMPDIR/labkeeper-server-url`. Wipe local SQLite with `rm -rf data/` (required after migration renames / schema resets).
 
 5. Start Portal:
 
@@ -70,7 +71,7 @@ npm install
 npm run dev
 ```
 
-Open [http://labkeeper:5173](http://labkeeper:5173). Home shows **Inventory** Hosts; **Credentials** manages the vault. `/login` shows a manual SSO button. Logout returns to `/login`.
+Open [http://labkeeper:5173](http://labkeeper:5173). Home manages **Inventory** Hosts (add/edit, assign credential); **Credentials** manages the vault. `/login` shows a manual SSO button. Logout returns to `/login`.
 
 If the IdP DB was bootstrapped with a different redirect URI, update the OIDC client or reset the Docker volume (`docker compose down -v`).
 
@@ -99,7 +100,7 @@ Useful env / flags:
 - `LABKEEPER_RETRY_INTERVAL` / `-retry-interval`
 - `LABKEEPER_CA_CERT`, `LABKEEPER_CLIENT_CERT`, `LABKEEPER_CLIENT_KEY`
 
-Expected flow: Agent connects → Inventory Host appears online in Portal → heartbeats keep `last_seen` fresh. If Server stops, Agent keeps retrying; when Server returns, Host comes back online.
+Expected flow: Agent connects → durable Inventory Host (UUID) appears online, keyed by cert fingerprint → heartbeats keep `last_seen` fresh. Hosts survive Server restart (marked offline until reconnect). Pre-enroll Hosts in the Portal with address + credential before an Agent exists.
 
 ## Todo
 
@@ -112,19 +113,19 @@ Expected flow: Agent connects → Inventory Host appears online in Portal → he
 - [x] Portal home shows Inventory Hosts
 - [x] Encrypted Credentials vault (password / SSH key) + Portal UI
 - [x] Server DB (sqlite/mysql/postgres) + goose migrations
+- [x] Persist Inventory Hosts + Portal CRUD
+- [x] Assign credential → Host (`credential_id`)
 
 ### Next
-- [ ] Assign credential → Host
 - [ ] Server-side SSH login/probe with vault credentials
+- [ ] Agent hardware discovery (`cpu_cores` / `memory_bytes`)
 - [ ] Per-agent certificates / enrollment
-- [ ] Persist Inventory Hosts (beyond in-memory)
 - [ ] Network / LAN discovery for candidate Hosts
 - [ ] Serve Portal from Server (or reverse proxy) for non-dev deploys
 - [ ] Inventory groups (Ansible-style)
 
 ### Later
 - [ ] Real-time status monitoring
-- [ ] Resource usage (CPU, memory, disk)
 - [ ] Alerting
 - [ ] Tags and topology view
 - [ ] Allowlisted command channel

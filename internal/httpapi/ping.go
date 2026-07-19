@@ -17,4 +17,7 @@ type Message struct {
 	Hostname string   `json:"hostname,omitempty"`
 	OS       string   `json:"os,omitempty"`
 	IPs      []string `json:"ips,omitempty"`
+	// Reserved for future Agent hardware discovery (ignored until implemented).
+	CPUCores    *int   `json:"cpu_cores,omitempty"`
+	MemoryBytes *int64 `json:"memory_bytes,omitempty"`
 }

@@ -6,20 +6,52 @@ import {
   SessionExpiredError,
 } from "./oidc"
 
+export type HostCredentialSummary = {
+  id: string
+  name: string
+  type: "password" | "ssh_key"
+  username: string
+}
+
 export type Host = {
   id: string
-  subject: string
+  name: string
   hostname: string
+  address?: string
+  subject?: string
+  agent_fingerprint?: string
   os?: string
   ips?: string[]
   remote_addr?: string
   online: boolean
-  connected_at: string
-  last_seen: string
+  connected_at?: string
+  last_seen?: string
+  cpu_cores?: number
+  memory_bytes?: number
+  credential_id?: string
+  credential?: HostCredentialSummary
+  created_at: string
+  updated_at: string
 }
 
 export type HostListResponse = {
   hosts: Host[]
+}
+
+export type CreateHostInput = {
+  name?: string
+  hostname?: string
+  address?: string
+  os?: string
+  credential_id?: string
+}
+
+export type UpdateHostInput = {
+  name?: string
+  hostname?: string
+  address?: string
+  os?: string
+  credential_id?: string
 }
 
 export type Credential = {
@@ -121,6 +153,47 @@ export async function fetchInventoryHosts(): Promise<HostListResponse> {
     throw new Error(await readError(response, "Inventory hosts failed"))
   }
   return JSON.parse(await response.text()) as HostListResponse
+}
+
+export async function fetchHost(id: string): Promise<Host> {
+  const response = await apiFetch(`/api/inventory/hosts/${encodeURIComponent(id)}`)
+  if (!response.ok) {
+    throw new Error(await readError(response, "Host get failed"))
+  }
+  return JSON.parse(await response.text()) as Host
+}
+
+export async function createHost(input: CreateHostInput): Promise<Host> {
+  const response = await apiFetch("/api/inventory/hosts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, "Create host failed"))
+  }
+  return JSON.parse(await response.text()) as Host
+}
+
+export async function updateHost(id: string, input: UpdateHostInput): Promise<Host> {
+  const response = await apiFetch(`/api/inventory/hosts/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, "Update host failed"))
+  }
+  return JSON.parse(await response.text()) as Host
+}
+
+export async function deleteHost(id: string): Promise<void> {
+  const response = await apiFetch(`/api/inventory/hosts/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, "Delete host failed"))
+  }
 }
 
 export async function fetchCredentials(): Promise<CredentialListResponse> {

@@ -1,56 +1,83 @@
 package inventory
 
 import (
+	"errors"
 	"net/http"
-	"sort"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ricardoalcantara/LabKeeper/internal/inventory/dto"
+	"github.com/ricardoalcantara/LabKeeper/internal/inventory/repositories"
 )
 
 type Controller struct {
-	registry *Registry
+	service *Service
 }
 
-func NewController(registry *Registry) *Controller {
-	return &Controller{registry: registry}
+func NewController(service *Service) *Controller {
+	return &Controller{service: service}
 }
 
 func (c *Controller) listHosts(ctx *gin.Context) {
-	hosts := c.registry.List()
-	sort.Slice(hosts, func(i, j int) bool {
-		if hosts[i].Online != hosts[j].Online {
-			return hosts[i].Online
-		}
-		return hosts[i].Hostname < hosts[j].Hostname
-	})
-
-	response := dto.HostListResponse{Hosts: make([]dto.HostResponse, 0, len(hosts))}
-	for _, host := range hosts {
-		response.Hosts = append(response.Hosts, toHostResponse(host))
+	hosts, err := c.service.List()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusOK, dto.HostListResponse{Hosts: hosts})
 }
 
 func (c *Controller) getHost(ctx *gin.Context) {
-	host, ok := c.registry.Get(ctx.Param("id"))
-	if !ok {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "host not found"})
+	host, err := c.service.Get(ctx.Param("id"))
+	if err != nil {
+		writeHostError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, toHostResponse(host))
+	ctx.JSON(http.StatusOK, host)
 }
 
-func toHostResponse(host Host) dto.HostResponse {
-	return dto.HostResponse{
-		ID:          host.ID,
-		Subject:     host.Subject,
-		Hostname:    host.Hostname,
-		OS:          host.OS,
-		IPs:         host.IPs,
-		RemoteAddr:  host.RemoteAddr,
-		Online:      host.Online,
-		ConnectedAt: host.ConnectedAt,
-		LastSeen:    host.LastSeen,
+func (c *Controller) createHost(ctx *gin.Context) {
+	var req dto.CreateHostRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	host, err := c.service.Create(req)
+	if err != nil {
+		writeHostError(ctx, err)
+		return
+	}
+	ctx.JSON(http.StatusCreated, host)
+}
+
+func (c *Controller) updateHost(ctx *gin.Context) {
+	var req dto.UpdateHostRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	host, err := c.service.Update(ctx.Param("id"), req)
+	if err != nil {
+		writeHostError(ctx, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, host)
+}
+
+func (c *Controller) removeHost(ctx *gin.Context) {
+	if err := c.service.Delete(ctx.Param("id")); err != nil {
+		writeHostError(ctx, err)
+		return
+	}
+	ctx.Status(http.StatusNoContent)
+}
+
+func writeHostError(ctx *gin.Context, err error) {
+	switch {
+	case errors.Is(err, repositories.ErrNotFound):
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "host not found"})
+	case errors.Is(err, ErrInvalidCredential):
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "credential not found"})
+	default:
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 }

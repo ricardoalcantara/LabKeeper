@@ -164,7 +164,7 @@ body {
 }
 
 .status-offline {
-  color: #8a6d3b;
+  color: #c62828;
   font-weight: 600;
 }
 
@@ -248,7 +248,7 @@ pre {
   }
 
   .status-offline {
-    color: #e8c547;
+    color: #f07178;
   }
 
   .sub {

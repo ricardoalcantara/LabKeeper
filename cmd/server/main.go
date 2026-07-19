@@ -23,8 +23,8 @@ func main() {
 	portalauth.Register(app)
 	crypto.Register(app)
 	health.Register(app)
-	inventory.Register(app)
 	credentials.Register(app)
+	inventory.Register(app)
 
 	app.Invoke(migration.Run)
 	app.Run()

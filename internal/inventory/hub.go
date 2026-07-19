@@ -21,21 +21,21 @@ import (
 
 // Hub accepts Agent mTLS WebSocket connections and updates Inventory.
 type Hub struct {
-	registry *Registry
-	log      *slog.Logger
-	addr     string
-	server   *http.Server
+	service *Service
+	log     *slog.Logger
+	addr    string
+	server  *http.Server
 }
 
-func NewHub(registry *Registry, log *slog.Logger) *Hub {
+func NewHub(service *Service, log *slog.Logger) *Hub {
 	addr := os.Getenv("LABKEEPER_AGENT_ADDR")
 	if addr == "" {
 		addr = httpapi.DefaultAgentAddr
 	}
 	return &Hub{
-		registry: registry,
-		log:      log,
-		addr:     addr,
+		service: service,
+		log:     log,
+		addr:    addr,
 	}
 }
 
@@ -54,6 +54,10 @@ func StartHub(lc fx.Lifecycle, hub *Hub) {
 }
 
 func (h *Hub) start() error {
+	if err := h.service.MarkAllOffline(); err != nil {
+		return fmt.Errorf("mark hosts offline: %w", err)
+	}
+
 	paths := pki.DefaultPaths()
 	if err := pki.EnsureAssets(paths); err != nil {
 		return fmt.Errorf("prepare local PKI assets: %w", err)
@@ -126,8 +130,14 @@ func (h *Hub) websocketHandler() http.Handler {
 			"remote", request.RemoteAddr,
 		)
 
-		h.registry.UpsertConnected(fingerprint, subject, request.RemoteAddr, "", "", nil)
-		defer h.registry.MarkOffline(fingerprint)
+		if _, err := h.service.UpsertFromAgent(fingerprint, subject, request.RemoteAddr, "", "", nil); err != nil {
+			h.log.Error("inventory upsert on connect", "error", err)
+		}
+		defer func() {
+			if err := h.service.MarkOffline(fingerprint); err != nil {
+				h.log.Error("inventory mark offline", "error", err)
+			}
+		}()
 
 		for {
 			var message httpapi.Message
@@ -138,7 +148,7 @@ func (h *Hub) websocketHandler() http.Handler {
 
 			switch message.Type {
 			case httpapi.MessageTypeHello:
-				h.registry.UpsertConnected(
+				host, err := h.service.UpsertFromAgent(
 					fingerprint,
 					subject,
 					request.RemoteAddr,
@@ -146,21 +156,33 @@ func (h *Hub) websocketHandler() http.Handler {
 					message.OS,
 					message.IPs,
 				)
+				if err != nil {
+					h.log.Error("inventory hello upsert", "error", err)
+					break
+				}
 				h.log.Info("host hello",
-					"id", fingerprint,
+					"id", host.ID,
+					"fingerprint", fingerprint,
 					"hostname", message.Hostname,
 					"os", message.OS,
 				)
 			case httpapi.MessageTypeHeartbeat:
-				if _, ok := h.registry.Heartbeat(fingerprint, message.Hostname, message.OS, message.IPs); !ok {
-					h.registry.UpsertConnected(
+				_, ok, err := h.service.Heartbeat(fingerprint, message.Hostname, message.OS, message.IPs)
+				if err != nil {
+					h.log.Error("inventory heartbeat", "error", err)
+					break
+				}
+				if !ok {
+					if _, err := h.service.UpsertFromAgent(
 						fingerprint,
 						subject,
 						request.RemoteAddr,
 						message.Hostname,
 						message.OS,
 						message.IPs,
-					)
+					); err != nil {
+						h.log.Error("inventory heartbeat upsert", "error", err)
+					}
 				}
 			case httpapi.MessageTypePong:
 				h.log.Debug("pong received", "subject", subject, "id", message.ID)
