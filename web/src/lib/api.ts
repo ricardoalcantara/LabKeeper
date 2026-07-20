@@ -6,6 +6,28 @@ import {
   SessionExpiredError,
 } from "./oidc"
 
+export type Site = {
+  id: string
+  name: string
+  discovery_enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type SiteListResponse = {
+  sites: Site[]
+}
+
+export type CreateSiteInput = {
+  name: string
+  discovery_enabled?: boolean
+}
+
+export type UpdateSiteInput = {
+  name?: string
+  discovery_enabled?: boolean
+}
+
 export type HostCredentialSummary = {
   id: string
   name: string
@@ -15,6 +37,7 @@ export type HostCredentialSummary = {
 
 export type Host = {
   id: string
+  site_id: string
   name: string
   hostname: string
   address?: string
@@ -39,6 +62,7 @@ export type HostListResponse = {
 }
 
 export type CreateHostInput = {
+  site_id: string
   name?: string
   hostname?: string
   address?: string
@@ -47,6 +71,7 @@ export type CreateHostInput = {
 }
 
 export type UpdateHostInput = {
+  site_id?: string
   name?: string
   hostname?: string
   address?: string
@@ -186,16 +211,66 @@ async function apiFetch(path: string, init: RequestInit = {}, retried = false): 
   return apiFetch(path, init, true)
 }
 
-export async function fetchInventoryHosts(): Promise<HostListResponse> {
-  const response = await apiFetch("/api/inventory/hosts")
+export async function fetchSites(): Promise<SiteListResponse> {
+  const response = await apiFetch("/api/site")
   if (!response.ok) {
-    throw new Error(await readError(response, "Inventory hosts failed"))
+    throw new Error(await readError(response, "Sites list failed"))
+  }
+  return JSON.parse(await response.text()) as SiteListResponse
+}
+
+export async function fetchSite(id: string): Promise<Site> {
+  const response = await apiFetch(`/api/site/${encodeURIComponent(id)}`)
+  if (!response.ok) {
+    throw new Error(await readError(response, "Site get failed"))
+  }
+  return JSON.parse(await response.text()) as Site
+}
+
+export async function createSite(input: CreateSiteInput): Promise<Site> {
+  const response = await apiFetch("/api/site", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, "Create site failed"))
+  }
+  return JSON.parse(await response.text()) as Site
+}
+
+export async function updateSite(id: string, input: UpdateSiteInput): Promise<Site> {
+  const response = await apiFetch(`/api/site/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, "Update site failed"))
+  }
+  return JSON.parse(await response.text()) as Site
+}
+
+export async function deleteSite(id: string): Promise<void> {
+  const response = await apiFetch(`/api/site/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, "Delete site failed"))
+  }
+}
+
+export async function fetchInventory(siteId?: string): Promise<HostListResponse> {
+  const query = siteId ? `?site_id=${encodeURIComponent(siteId)}` : ""
+  const response = await apiFetch(`/api/inventory${query}`)
+  if (!response.ok) {
+    throw new Error(await readError(response, "Inventory list failed"))
   }
   return JSON.parse(await response.text()) as HostListResponse
 }
 
 export async function fetchHost(id: string): Promise<Host> {
-  const response = await apiFetch(`/api/inventory/hosts/${encodeURIComponent(id)}`)
+  const response = await apiFetch(`/api/inventory/${encodeURIComponent(id)}`)
   if (!response.ok) {
     throw new Error(await readError(response, "Host get failed"))
   }
@@ -203,7 +278,7 @@ export async function fetchHost(id: string): Promise<Host> {
 }
 
 export async function createHost(input: CreateHostInput): Promise<Host> {
-  const response = await apiFetch("/api/inventory/hosts", {
+  const response = await apiFetch("/api/inventory", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -215,7 +290,7 @@ export async function createHost(input: CreateHostInput): Promise<Host> {
 }
 
 export async function updateHost(id: string, input: UpdateHostInput): Promise<Host> {
-  const response = await apiFetch(`/api/inventory/hosts/${encodeURIComponent(id)}`, {
+  const response = await apiFetch(`/api/inventory/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -227,7 +302,7 @@ export async function updateHost(id: string, input: UpdateHostInput): Promise<Ho
 }
 
 export async function deleteHost(id: string): Promise<void> {
-  const response = await apiFetch(`/api/inventory/hosts/${encodeURIComponent(id)}`, {
+  const response = await apiFetch(`/api/inventory/${encodeURIComponent(id)}`, {
     method: "DELETE",
   })
   if (!response.ok) {
@@ -236,7 +311,7 @@ export async function deleteHost(id: string): Promise<void> {
 }
 
 export async function fetchDiscoveryStatus(): Promise<DiscoveryStatus> {
-  const response = await apiFetch("/api/inventory/discovery/status")
+  const response = await apiFetch("/api/discovery/status")
   if (!response.ok) {
     throw new Error(await readError(response, "Discovery status failed"))
   }
@@ -244,7 +319,7 @@ export async function fetchDiscoveryStatus(): Promise<DiscoveryStatus> {
 }
 
 export async function scanDiscovery(cidr: string): Promise<DiscoveryScanResult> {
-  const response = await apiFetch("/api/inventory/discovery/scan", {
+  const response = await apiFetch("/api/discovery/scan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ cidr }),

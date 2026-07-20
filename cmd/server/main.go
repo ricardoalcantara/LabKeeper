@@ -10,6 +10,7 @@ import (
 	"github.com/ricardoalcantara/LabKeeper/internal/health"
 	"github.com/ricardoalcantara/LabKeeper/internal/inventory"
 	"github.com/ricardoalcantara/LabKeeper/internal/portalauth"
+	"github.com/ricardoalcantara/LabKeeper/internal/site"
 	"github.com/ricardoalcantara/LabKeeper/internal/storage"
 	"github.com/ricardoalcantara/LabKeeper/migrations"
 )
@@ -25,6 +26,7 @@ func main() {
 	crypto.Register(app)
 	health.Register(app)
 	credentials.Register(app)
+	site.Register(app)
 	inventory.Register(app)
 	discovery.Register(app)
 

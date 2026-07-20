@@ -17,9 +17,13 @@ func NewHostRepository(db *gorm.DB) *HostRepository {
 	return &HostRepository{db: db}
 }
 
-func (r *HostRepository) List() ([]entities.Host, error) {
+func (r *HostRepository) List(siteID string) ([]entities.Host, error) {
 	var rows []entities.Host
-	if err := r.db.Find(&rows).Error; err != nil {
+	q := r.db
+	if siteID != "" {
+		q = q.Where("site_id = ?", siteID)
+	}
+	if err := q.Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil

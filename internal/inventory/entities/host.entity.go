@@ -6,6 +6,7 @@ type Host struct {
 	ID               string     `gorm:"column:id;primaryKey"`
 	CreatedAt        time.Time  `gorm:"column:created_at;not null"`
 	UpdatedAt        time.Time  `gorm:"column:updated_at;not null"`
+	SiteID           string     `gorm:"column:site_id;not null;index"`
 	Name             string     `gorm:"column:name;not null"`
 	Hostname         string     `gorm:"column:hostname;not null"`
 	Address          string     `gorm:"column:address;not null"`

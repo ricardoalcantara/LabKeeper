@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react"
 import {
   createHost,
   fetchCredentials,
+  fetchHost,
   updateHost,
   type CreateHostInput,
   type Credential,
@@ -10,7 +11,9 @@ import {
 import { SessionExpiredError } from "../lib/oidc"
 
 type Props = {
+  siteId: string
   host?: Host | null
+  hostId?: string | null
   onCancel: () => void
   onSaved: () => void
 }
@@ -27,8 +30,9 @@ function formatMemory(bytes?: number): string {
   return `${mib.toFixed(0)} MiB`
 }
 
-export function HostForm({ host, onCancel, onSaved }: Props) {
-  const editing = Boolean(host)
+export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
+  const editing = Boolean(host || hostId)
+  const [loadedHost, setLoadedHost] = useState<Host | null>(host ?? null)
   const [name, setName] = useState(host?.name ?? "")
   const [hostname, setHostname] = useState(host?.hostname ?? "")
   const [address, setAddress] = useState(host?.address ?? "")
@@ -37,6 +41,51 @@ export function HostForm({ host, onCancel, onSaved }: Props) {
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(Boolean(hostId && !host))
+
+  useEffect(() => {
+    if (host) {
+      setLoadedHost(host)
+      setName(host.name ?? "")
+      setHostname(host.hostname ?? "")
+      setAddress(host.address ?? "")
+      setOs(host.os ?? "")
+      setCredentialId(host.credential_id ?? "")
+      setLoading(false)
+      return
+    }
+    if (!hostId) {
+      setLoadedHost(null)
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const row = await fetchHost(hostId)
+        if (!cancelled) {
+          setLoadedHost(row)
+          setName(row.name ?? "")
+          setHostname(row.hostname ?? "")
+          setAddress(row.address ?? "")
+          setOs(row.os ?? "")
+          setCredentialId(row.credential_id ?? "")
+        }
+      } catch (err) {
+        if (cancelled || err instanceof SessionExpiredError) {
+          return
+        }
+        setError(err instanceof Error ? err.message : "Failed to load host")
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [host, hostId])
 
   useEffect(() => {
     let cancelled = false
@@ -71,8 +120,8 @@ export function HostForm({ host, onCancel, onSaved }: Props) {
         setSaving(false)
         return
       }
-      if (editing && host) {
-        await updateHost(host.id, {
+      if (editing && loadedHost) {
+        await updateHost(loadedHost.id, {
           name: trimmedName,
           hostname: trimmedHostname,
           address: trimmedAddress,
@@ -81,6 +130,7 @@ export function HostForm({ host, onCancel, onSaved }: Props) {
         })
       } else {
         const input: CreateHostInput = {
+          site_id: siteId,
           name: trimmedName || undefined,
           hostname: trimmedHostname || undefined,
           address: trimmedAddress || undefined,
@@ -100,6 +150,10 @@ export function HostForm({ host, onCancel, onSaved }: Props) {
     } finally {
       setSaving(false)
     }
+  }
+
+  if (loading) {
+    return <p>Loading host…</p>
   }
 
   return (
@@ -154,12 +208,14 @@ export function HostForm({ host, onCancel, onSaved }: Props) {
         </select>
       </label>
 
-      {editing && host ? (
+      {editing && loadedHost ? (
         <p className="sub">
-          Status: {host.online ? "online" : "offline"}
-          {host.cpu_cores != null ? ` · CPU ${host.cpu_cores}` : ""}
-          {host.memory_bytes != null ? ` · RAM ${formatMemory(host.memory_bytes)}` : ""}
-          {host.agent_fingerprint ? ` · agent ${host.agent_fingerprint.slice(0, 12)}…` : " · no agent yet"}
+          Status: {loadedHost.online ? "online" : "offline"}
+          {loadedHost.cpu_cores != null ? ` · CPU ${loadedHost.cpu_cores}` : ""}
+          {loadedHost.memory_bytes != null ? ` · RAM ${formatMemory(loadedHost.memory_bytes)}` : ""}
+          {loadedHost.agent_fingerprint
+            ? ` · agent ${loadedHost.agent_fingerprint.slice(0, 12)}…`
+            : " · no agent yet"}
         </p>
       ) : null}
 

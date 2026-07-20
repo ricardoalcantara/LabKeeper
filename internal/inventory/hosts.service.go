@@ -13,19 +13,27 @@ import (
 	"github.com/ricardoalcantara/LabKeeper/internal/inventory/dto"
 	"github.com/ricardoalcantara/LabKeeper/internal/inventory/entities"
 	"github.com/ricardoalcantara/LabKeeper/internal/inventory/repositories"
+	siterepo "github.com/ricardoalcantara/LabKeeper/internal/site/repositories"
 )
 
 var (
 	ErrInvalidCredential = errors.New("credential not found")
+	ErrInvalidSite       = errors.New("site not found")
+	ErrMissingSite       = errors.New("site_id is required")
 )
 
 type Service struct {
 	hosts       *repositories.HostRepository
 	credentials *credrepo.CredentialRepository
+	sites       *siterepo.SiteRepository
 }
 
-func NewService(hosts *repositories.HostRepository, credentials *credrepo.CredentialRepository) *Service {
-	return &Service{hosts: hosts, credentials: credentials}
+func NewService(
+	hosts *repositories.HostRepository,
+	credentials *credrepo.CredentialRepository,
+	sites *siterepo.SiteRepository,
+) *Service {
+	return &Service{hosts: hosts, credentials: credentials, sites: sites}
 }
 
 func (s *Service) MarkAllOffline() error {
@@ -45,6 +53,7 @@ func (s *Service) UpsertFromAgent(fingerprint, subject, remoteAddr, hostname, os
 			ID:               uuid.NewString(),
 			CreatedAt:        now,
 			UpdatedAt:        now,
+			SiteID:           siterepo.DefaultSiteID,
 			Name:             "", // optional friendly label; Agent only fills hostname
 			Hostname:         hostname,
 			OS:               osName,
@@ -129,8 +138,8 @@ func (s *Service) MarkOffline(fingerprint string) error {
 	return s.hosts.Update(row)
 }
 
-func (s *Service) List() ([]dto.HostResponse, error) {
-	rows, err := s.hosts.List()
+func (s *Service) List(siteID string) ([]dto.HostResponse, error) {
+	rows, err := s.hosts.List(siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -172,11 +181,20 @@ func (s *Service) Get(id string) (*dto.HostResponse, error) {
 }
 
 func (s *Service) Create(req dto.CreateHostRequest) (*dto.HostResponse, error) {
+	siteID := strings.TrimSpace(req.SiteID)
+	if siteID == "" {
+		return nil, ErrMissingSite
+	}
+	if err := s.ensureSite(siteID); err != nil {
+		return nil, err
+	}
+
 	now := time.Now().UTC()
 	row := &entities.Host{
 		ID:        uuid.NewString(),
 		CreatedAt: now,
 		UpdatedAt: now,
+		SiteID:    siteID,
 		Name:      strings.TrimSpace(req.Name),
 		Hostname:  strings.TrimSpace(req.Hostname),
 		Address:   strings.TrimSpace(req.Address),
@@ -204,6 +222,16 @@ func (s *Service) Update(id string, req dto.UpdateHostRequest) (*dto.HostRespons
 	row, err := s.hosts.GetByID(id)
 	if err != nil {
 		return nil, err
+	}
+	if req.SiteID != nil {
+		siteID := strings.TrimSpace(*req.SiteID)
+		if siteID == "" {
+			return nil, ErrMissingSite
+		}
+		if err := s.ensureSite(siteID); err != nil {
+			return nil, err
+		}
+		row.SiteID = siteID
 	}
 	if req.Name != nil {
 		row.Name = strings.TrimSpace(*req.Name)
@@ -245,7 +273,7 @@ func (s *Service) Delete(id string) error {
 
 // KnownAddresses returns address/IP strings already present in Inventory.
 func (s *Service) KnownAddresses() (map[string]struct{}, error) {
-	rows, err := s.hosts.List()
+	rows, err := s.hosts.List("")
 	if err != nil {
 		return nil, err
 	}
@@ -273,9 +301,20 @@ func (s *Service) ensureCredential(id string) error {
 	return nil
 }
 
+func (s *Service) ensureSite(id string) error {
+	if _, err := s.sites.GetByID(id); err != nil {
+		if errors.Is(err, siterepo.ErrNotFound) {
+			return ErrInvalidSite
+		}
+		return err
+	}
+	return nil
+}
+
 func (s *Service) toResponse(row *entities.Host) (dto.HostResponse, error) {
 	resp := dto.HostResponse{
 		ID:          row.ID,
+		SiteID:      row.SiteID,
 		Name:        row.Name,
 		Hostname:    row.Hostname,
 		Address:     row.Address,

@@ -3,6 +3,7 @@ package inventory
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ricardoalcantara/LabKeeper/internal/inventory/dto"
@@ -18,7 +19,7 @@ func NewController(service *Service) *Controller {
 }
 
 func (c *Controller) listHosts(ctx *gin.Context) {
-	hosts, err := c.service.List()
+	hosts, err := c.service.List(strings.TrimSpace(ctx.Query("site_id")))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -77,6 +78,10 @@ func writeHostError(ctx *gin.Context, err error) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "host not found"})
 	case errors.Is(err, ErrInvalidCredential):
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "credential not found"})
+	case errors.Is(err, ErrInvalidSite):
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "site not found"})
+	case errors.Is(err, ErrMissingSite):
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}

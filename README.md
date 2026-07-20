@@ -10,7 +10,8 @@ Automated homelab discovery and management for organizing and tracking your netw
 | **Server** | `cmd/server` — Portal HTTP API + Agent mTLS WebSocket hub |
 | **Portal** | `web/` — browser SPA (OIDC) |
 | **LabKeeper Agent** | `cmd/agent` only — runs on each managed machine |
-| **Inventory** | Collection of managed machines (Ansible-style) |
+| **Inventory** | Collection of managed Hosts (Ansible-style) |
+| **Site** | Place/account bucket grouping Hosts (Default, cloud provider, …) |
 | **Host** | One item in Inventory |
 
 Do not call Inventory items “servers” — that word means the **Server** binary.
@@ -22,12 +23,13 @@ Minimal authenticated admin app:
 - **Portal** — React SPA with OIDC PKCE via [min-idp](https://github.com/ricardoalcantara/min-idp)
 - **Server** — go-minstack API that validates JWTs, persists Inventory Hosts + encrypted Credentials
 - `GET /api/ping` — auth check
-- `/api/inventory/hosts` — Inventory CRUD (JWT); Agents also upsert Hosts over mTLS
-- `/api/inventory/discovery` — private LAN scan (JWT; Server-local; candidates only, no auto-add)
+- `/api/site` — Sites CRUD (JWT)
+- `/api/inventory` — Hosts CRUD (JWT); optional `?site_id=` filter; Agents also upsert Hosts over mTLS
+- `/api/discovery` — private LAN scan (JWT; Server-local; candidates only, no auto-add)
 - `/api/credentials` — encrypted vault (password / SSH key; optional key passphrase; Ansible-style become `none|sudo|su` + become user/secret; JWT; secrets never returned on GET)
-- Hosts may link one vault credential (`credential_id`) for future SSH; `cpu_cores` / `memory_bytes` reserved for Agent discovery
+- Hosts belong to one Site (`site_id`); may link one vault credential (`credential_id`) for future SSH; `cpu_cores` / `memory_bytes` reserved for Agent discovery
 
-Discovery is enabled only when the Server has a private RFC1918 address. Scans accept interface CIDRs or a custom private CIDR up to `/23`, using ICMP (`ping`) plus TCP probes. The Portal **Discover** button prefills Add host — nothing is enrolled automatically.
+Discovery is enabled per Site (`discovery_enabled`) when the Server has a private RFC1918 address. Scans accept interface CIDRs or a custom private CIDR up to `/23`, using ICMP (`ping`) plus TCP probes. The Portal **Discover** panel (inside an enabled Site) prefills Add host — nothing is enrolled automatically.
 
 ### Run Admin locally
 
@@ -74,7 +76,7 @@ npm install
 npm run dev
 ```
 
-Open [http://labkeeper:5173](http://labkeeper:5173). Home manages **Inventory** Hosts (add/edit, assign credential); **Credentials** manages the vault. `/login` shows a manual SSO button. Logout returns to `/login`.
+Open [http://labkeeper:5173](http://labkeeper:5173). Home manages **Sites** and Inventory Hosts per site (add/edit, assign credential); **Credentials** manages the vault. `/login` shows a manual SSO button. Logout returns to `/login`.
 
 If the IdP DB was bootstrapped with a different redirect URI, update the OIDC client or reset the Docker volume (`docker compose down -v`).
 
@@ -112,14 +114,15 @@ Expected flow: Agent connects → durable Inventory Host (UUID) appears online, 
 - [x] Server JWT auth (`GET /api/ping`)
 - [x] Local min-idp in Docker (`v0.5.0-alpha`, hostnames `min-idp` / `labkeeper`)
 - [x] Agent mTLS WebSocket hub on Server (poc-server removed)
-- [x] Inventory Hosts via hello/heartbeat + `GET /api/inventory/hosts`
-- [x] Portal home shows Inventory Hosts
+- [x] Inventory Hosts via hello/heartbeat + `GET /api/inventory`
+- [x] Portal home shows Inventory Hosts grouped by Site
 - [x] Encrypted Credentials vault (password / SSH key) + Portal UI
 - [x] Credential key passphrase + become (sudo/su) secrets
 - [x] Server DB (sqlite/mysql/postgres) + goose migrations
 - [x] Persist Inventory Hosts + Portal CRUD
 - [x] Assign credential → Host (`credential_id`)
 - [x] Private LAN discovery (candidates; manual add)
+- [x] Inventory Sites (Default site, cloud accounts; lazy-loaded hosts per site)
 
 ### Next
 - [ ] Server-side SSH login/probe with vault credentials

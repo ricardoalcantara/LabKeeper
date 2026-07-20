@@ -11,6 +11,7 @@ type CredentialSummary struct {
 
 type HostResponse struct {
 	ID               string             `json:"id"`
+	SiteID           string             `json:"site_id"`
 	Name             string             `json:"name"`
 	Hostname         string             `json:"hostname"`
 	Address          string             `json:"address,omitempty"`
@@ -35,6 +36,7 @@ type HostListResponse struct {
 }
 
 type CreateHostRequest struct {
+	SiteID       string `json:"site_id"`
 	Name         string `json:"name"`
 	Hostname     string `json:"hostname"`
 	Address      string `json:"address"`
@@ -43,6 +45,7 @@ type CreateHostRequest struct {
 }
 
 type UpdateHostRequest struct {
+	SiteID       *string `json:"site_id"`
 	Name         *string `json:"name"`
 	Hostname     *string `json:"hostname"`
 	Address      *string `json:"address"`

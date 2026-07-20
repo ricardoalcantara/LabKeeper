@@ -1,47 +1,27 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { AppHeader } from "../components/AppHeader"
-import { DiscoveryPanel } from "../components/DiscoveryPanel"
 import { HostForm } from "../components/HostForm"
-import { HostList } from "../components/HostList"
+import { SiteForm } from "../components/SiteForm"
+import { SiteList } from "../components/SiteList"
 import { UserSummary } from "../components/UserSummary"
-import { fetchDiscoveryStatus, type Host } from "../lib/api"
-import { isAuthenticated, loadSession, logout, SessionExpiredError, startLogin } from "../lib/oidc"
+import { type Host, type Site } from "../lib/api"
+import { isAuthenticated, loadSession, logout, startLogin } from "../lib/oidc"
+
+type Mode = "list" | "createSite" | "editSite" | "createHost" | "editHost"
 
 export function HomePage() {
-  const [mode, setMode] = useState<"list" | "create" | "edit" | "discover">("list")
-  const [editing, setEditing] = useState<Host | null>(null)
+  const [mode, setMode] = useState<Mode>("list")
+  const [activeSite, setActiveSite] = useState<Site | null>(null)
+  const [editingSite, setEditingSite] = useState<Site | null>(null)
+  const [editingHost, setEditingHost] = useState<Host | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [discoveryEnabled, setDiscoveryEnabled] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated()) {
       void startLogin().catch((error) => {
         console.error("auto login redirect failed", error)
       })
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      try {
-        const status = await fetchDiscoveryStatus()
-        if (!cancelled) {
-          setDiscoveryEnabled(status.enabled)
-        }
-      } catch (err) {
-        if (cancelled || err instanceof SessionExpiredError) {
-          return
-        }
-        setDiscoveryEnabled(false)
-      }
-    })()
-    return () => {
-      cancelled = true
     }
   }, [])
 
@@ -57,6 +37,13 @@ export function HomePage() {
   const userinfo = session.userinfo as
     | { name?: string; email?: string; preferred_username?: string; username?: string }
     | undefined
+
+  const backToList = () => {
+    setMode("list")
+    setActiveSite(null)
+    setEditingSite(null)
+    setEditingHost(null)
+  }
 
   return (
     <main className="card wide">
@@ -83,45 +70,61 @@ export function HomePage() {
 
       <section className="inventory-section">
         {mode === "list" ? (
-          <HostList
+          <SiteList
             refreshKey={refreshKey}
-            discoveryEnabled={discoveryEnabled}
-            onDiscover={() => {
-              setEditing(null)
-              setMode("discover")
+            onCreateSite={() => {
+              setEditingSite(null)
+              setMode("createSite")
             }}
-            onCreate={() => {
-              setEditing(null)
-              setMode("create")
+            onEditSite={(site) => {
+              setEditingSite(site)
+              setMode("editSite")
             }}
-            onEdit={(host) => {
-              setEditing(host)
-              setMode("edit")
+            onCreateHost={(site) => {
+              setActiveSite(site)
+              setEditingHost(null)
+              setMode("createHost")
             }}
-          />
-        ) : null}
-
-        {mode === "discover" ? (
-          <DiscoveryPanel
-            onClose={() => {
-              setMode("list")
+            onEditHost={(site, host) => {
+              setActiveSite(site)
+              setEditingHost(host)
+              setMode("editHost")
             }}
-            onAdded={() => {
+            onHostsChanged={() => {
               setRefreshKey((value) => value + 1)
             }}
           />
         ) : null}
 
-        {mode === "create" || mode === "edit" ? (
-          <HostForm
-            host={mode === "edit" ? editing : null}
-            onCancel={() => {
-              setEditing(null)
-              setMode("list")
-            }}
+        {mode === "createSite" || mode === "editSite" ? (
+          <SiteForm
+            site={mode === "editSite" ? editingSite : null}
+            onCancel={backToList}
             onSaved={() => {
-              setEditing(null)
-              setMode("list")
+              backToList()
+              setRefreshKey((value) => value + 1)
+            }}
+          />
+        ) : null}
+
+        {mode === "createHost" && activeSite ? (
+          <HostForm
+            siteId={activeSite.id}
+            onCancel={backToList}
+            onSaved={() => {
+              backToList()
+              setRefreshKey((value) => value + 1)
+            }}
+          />
+        ) : null}
+
+        {mode === "editHost" && activeSite && editingHost ? (
+          <HostForm
+            siteId={activeSite.id}
+            host={editingHost}
+            onCancel={backToList}
+            onSaved={() => {
+              backToList()
               setRefreshKey((value) => value + 1)
             }}
           />

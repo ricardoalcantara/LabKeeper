@@ -10,8 +10,9 @@ Standards for AI and human contributors working in this repository.
 | **Server** | Control-plane binary (Portal HTTP API + Agent WebSocket hub) | `cmd/server` |
 | **Portal** | Browser SPA | `web/` |
 | **LabKeeper Admin** | Server + Portal together | `cmd/server` + `web/` |
-| **Inventory** | Collection of managed machines (Ansible-style) | `internal/inventory/`, `/api/inventory/...` |
-| **Host** | One item in Inventory | `/api/inventory/hosts/:id` |
+| **Inventory** | Collection of managed Hosts (Ansible-style) | `internal/inventory/`, `/api/inventory` |
+| **Site** | Place/account bucket grouping Hosts | `internal/site/`, `/api/site`, `site_id` on Host |
+| **Host** | One Inventory item | `/api/inventory/:id` |
 
 Do **not** call Inventory items “servers” — **Server** is the LabKeeper Admin backend only.
 
@@ -21,8 +22,9 @@ Do **not** call Inventory items “servers” — **Server** is the LabKeeper Ad
 - `cmd/server/` — Server (go-minstack HTTP + Agent mTLS WebSocket hub)
 - `cmd/agent/` — LabKeeper Agent
 - `internal/health/` — Portal health/ping API
-- `internal/inventory/` — Inventory Hosts (DB), Agent hub, Hosts CRUD API
-- `internal/discovery/` — private LAN discovery (ICMP + TCP; JWT; candidates only)
+- `internal/site/` — Sites CRUD API (`/api/site`)
+- `internal/inventory/` — Inventory Hosts (DB), Agent hub, Hosts CRUD API (`/api/inventory`)
+- `internal/discovery/` — private LAN discovery (ICMP + TCP; JWT; `/api/discovery`)
 - `internal/credentials/` — encrypted Credentials vault (password / SSH key + optional key passphrase + Ansible-style become)
 - `internal/crypto/` — `CryptoService` (AES-GCM via `LABKEEPER_MASTER_KEY`)
 - `internal/storage/` — multi-driver GORM (`LABKEEPER_DB_*`)
@@ -41,6 +43,16 @@ Follow [go-minstack AGENTS.example.md](https://github.com/go-minstack/go-minstac
 - Portal API modules: `core` + `gin` + `portalauth` + `storage` + `migration` when persistence is needed
 - Route registration belongs in explicit `RegisterRoutes` invoked by `app.Invoke(...)`
 - Schema changes go through goose migrations under `migrations/` (not AutoMigrate for production tables)
+
+### Portal REST API
+
+- **Collection path = resource name** — `/api/site`, `/api/inventory`, `/api/credentials`. Do not nest the entity twice (`/api/inventory/hosts`).
+- **Item path = collection + id** — `/api/inventory/:id`.
+- **Filters on collection GET** — query params (`GET /api/inventory?site_id=`), not extra path segments.
+- **Non-CRUD actions** — separate namespace (`/api/discovery/scan`, `/api/credentials/ssh-keygen`).
+- **Product names vs paths** — “Host” is the entity; `/api/inventory` is the host collection (maps to `hosts` table). Do not expose duplicate `/api/host` and `/api/inventory`.
+- **Avoid redundant joins** — Host list/get returns `site_id` only; site names come from `GET /api/site` on the client.
+- **Secrets** — list/get never return decrypted credential fields.
 
 ### Auth boundaries
 
@@ -89,11 +101,11 @@ Agent:
 
 ### Auth UX rules
 
-- `/` auto-redirects to SSO when unauthenticated; signed-in home shows Inventory Hosts (CRUD + credential assign)
+- `/` auto-redirects to SSO when unauthenticated; signed-in home shows **Sites** (expand a site to lazy-load its Hosts; CRUD + credential assign)
 - `/credentials` manages the encrypted Credentials vault (login secret; optional SSH key passphrase; optional `become_method` / `become_user` / become secret). List/get never return secrets — only `has_passphrase` / `has_become_secret` flags.
-- Inventory Hosts are persisted (`hosts` table); Agents upsert by `agent_fingerprint` (client cert). Optional `credential_id` links one vault credential for future SSH. `cpu_cores` / `memory_bytes` are reserved for Agent discovery.
+- Inventory Hosts are persisted (`hosts` table) with required `site_id`. Agents upsert by `agent_fingerprint` (client cert) into the default Site (`Default`) until enrollment UI exists. Optional `credential_id` links one vault credential for future SSH. `cpu_cores` / `memory_bytes` are reserved for Agent discovery.
 - After editing embedded goose SQL in `migrations/00001_init.sql`, wipe local SQLite with `rm -rf data/` before restart.
-- LAN **Discover** appears only when the Server has a private (RFC1918) interface. Scans run on the Server (`/api/inventory/discovery/*`), max `/23`, ICMP (`ping`) + TCP `22/80/443/445`; results are candidates — never auto-added.
+- LAN **Discover** appears inside a Site when that Site has `discovery_enabled` and the Server has a private (RFC1918) interface. Scans run on the Server (`/api/discovery/*`), max `/23`, ICMP (`ping`) + TCP `22/80/443/445`; results are candidates — never auto-added.
 - `/login` stays on page and shows the SSO button (no auto redirect)
 - `/callback` completes OIDC and returns to `/`
 - Logout clears local session and uses min-idp RP logout with `post_logout_redirect_uri` = Portal `/login` (allowlisted on the OIDC client)

@@ -1,4 +1,4 @@
-package inventory
+package site
 
 import (
 	"github.com/gin-gonic/gin"
@@ -7,9 +7,9 @@ import (
 
 func RegisterRoutes(r *gin.Engine, c *Controller, validator *portalauth.Validator) {
 	api := r.Group("/api", portalauth.Authenticate(validator))
-	api.GET("/inventory", c.listHosts)
-	api.POST("/inventory", c.createHost)
-	api.GET("/inventory/:id", c.getHost)
-	api.PUT("/inventory/:id", c.updateHost)
-	api.DELETE("/inventory/:id", c.removeHost)
+	api.GET("/site", c.list)
+	api.POST("/site", c.create)
+	api.GET("/site/:id", c.get)
+	api.PUT("/site/:id", c.update)
+	api.DELETE("/site/:id", c.remove)
 }

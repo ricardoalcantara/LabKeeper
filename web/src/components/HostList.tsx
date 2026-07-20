@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react"
-import { deleteHost, fetchInventoryHosts, type Host } from "../lib/api"
+import { deleteHost, fetchInventory, type Host } from "../lib/api"
 import { SessionExpiredError } from "../lib/oidc"
 
 type Props = {
+  siteId: string
   onCreate: () => void
   onEdit: (host: Host) => void
   onDiscover?: () => void
-  discoveryEnabled?: boolean
   refreshKey: number
 }
 
@@ -32,7 +32,7 @@ function showHostnameSub(host: Host): boolean {
   return Boolean(label && hn && label !== hn)
 }
 
-export function HostList({ onCreate, onEdit, onDiscover, discoveryEnabled, refreshKey }: Props) {
+export function HostList({ siteId, onCreate, onEdit, onDiscover, refreshKey }: Props) {
   const [hosts, setHosts] = useState<Host[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -42,7 +42,7 @@ export function HostList({ onCreate, onEdit, onDiscover, discoveryEnabled, refre
 
     const load = async () => {
       try {
-        const response = await fetchInventoryHosts()
+        const response = await fetchInventory(siteId)
         if (!cancelled) {
           setHosts(response.hosts)
           setError(null)
@@ -59,6 +59,7 @@ export function HostList({ onCreate, onEdit, onDiscover, discoveryEnabled, refre
       }
     }
 
+    setLoading(true)
     void load()
     const timer = window.setInterval(() => {
       void load()
@@ -68,7 +69,7 @@ export function HostList({ onCreate, onEdit, onDiscover, discoveryEnabled, refre
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [refreshKey])
+  }, [siteId, refreshKey])
 
   const handleDelete = async (host: Host) => {
     if (!window.confirm(`Delete host “${displayName(host)}”?`)) {
@@ -86,15 +87,15 @@ export function HostList({ onCreate, onEdit, onDiscover, discoveryEnabled, refre
   }
 
   if (loading) {
-    return <p>Loading inventory…</p>
+    return <p className="sub">Loading hosts…</p>
   }
 
   return (
-    <section>
-      <div className="section-toolbar">
-        <h2>Inventory hosts</h2>
+    <div className="site-hosts">
+      <div className="section-toolbar site-hosts-toolbar">
+        <h3>Hosts</h3>
         <div className="header-actions">
-          {discoveryEnabled && onDiscover ? (
+          {onDiscover ? (
             <button type="button" onClick={onDiscover}>
               Discover
             </button>
@@ -109,8 +110,8 @@ export function HostList({ onCreate, onEdit, onDiscover, discoveryEnabled, refre
 
       {hosts.length === 0 ? (
         <p className="sub">
-          No hosts yet. Add one for future SSH, or start an Agent (`go run ./cmd/agent`) so it can
-          register itself.
+          No hosts in this site. Add one for future SSH, or start an Agent (`go run ./cmd/agent`) so
+          it can register itself.
         </p>
       ) : (
         <table className="host-table">
@@ -158,6 +159,6 @@ export function HostList({ onCreate, onEdit, onDiscover, discoveryEnabled, refre
           </tbody>
         </table>
       )}
-    </section>
+    </div>
   )
 }

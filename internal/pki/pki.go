@@ -20,6 +20,11 @@ import (
 
 const (
 	DefaultDirName = "labkeeper-ws-pki"
+
+	// Local dev lifetimes for auto-generated mTLS assets under $TMPDIR/labkeeper-ws-pki.
+	devCALifetime   = 365 * 24 * time.Hour
+	devLeafLifetime = 30 * 24 * time.Hour
+	devExpiryBuffer = time.Hour
 )
 
 type Paths struct {
@@ -46,7 +51,7 @@ func DefaultPaths() Paths {
 }
 
 func EnsureAssets(paths Paths) error {
-	if filesExist(paths.CACert, paths.CAKey, paths.ServerCert, paths.ServerKey, paths.ClientCert, paths.ClientKey) {
+	if assetsValid(paths) {
 		return nil
 	}
 
@@ -164,7 +169,7 @@ func createCertificateAuthority() (*x509.Certificate, ed25519.PrivateKey, error)
 		SerialNumber:          big.NewInt(time.Now().UnixNano()),
 		Subject:               pkix.Name{CommonName: "labkeeper-dev-ca"},
 		NotBefore:             time.Now().Add(-5 * time.Minute),
-		NotAfter:              time.Now().Add(24 * time.Hour),
+		NotAfter:              time.Now().Add(devCALifetime),
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		BasicConstraintsValid: true,
 		IsCA:                  true,
@@ -195,7 +200,7 @@ func createSignedCertificate(caCert *x509.Certificate, caKey ed25519.PrivateKey,
 			CommonName: options.CommonName,
 		},
 		NotBefore:   time.Now().Add(-5 * time.Minute),
-		NotAfter:    time.Now().Add(12 * time.Hour),
+		NotAfter:    time.Now().Add(devLeafLifetime),
 		KeyUsage:    x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: options.ExtKeyUsages,
 		DNSNames:    options.DNSNames,
@@ -264,4 +269,54 @@ func filesExist(paths ...string) bool {
 	}
 
 	return true
+}
+
+func assetsValid(paths Paths) bool {
+	required := []string{
+		paths.CACert,
+		paths.CAKey,
+		paths.ServerCert,
+		paths.ServerKey,
+		paths.ClientCert,
+		paths.ClientKey,
+	}
+	if !filesExist(required...) {
+		return false
+	}
+
+	now := time.Now()
+	for _, path := range []string{paths.CACert, paths.ServerCert, paths.ClientCert} {
+		certificate, err := loadCertificate(path)
+		if err != nil {
+			return false
+		}
+		if now.Before(certificate.NotBefore) || now.After(certificate.NotAfter.Add(-devExpiryBuffer)) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func loadCertificate(path string) (*x509.Certificate, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		block, rest := pem.Decode(data)
+		if block == nil {
+			return nil, errors.New("no certificate PEM block found")
+		}
+		if block.Type != "CERTIFICATE" {
+			data = rest
+			if len(data) == 0 {
+				return nil, errors.New("no certificate PEM block found")
+			}
+			continue
+		}
+
+		return x509.ParseCertificate(block.Bytes)
+	}
 }

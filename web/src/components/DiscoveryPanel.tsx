@@ -9,11 +9,12 @@ import {
 import { SessionExpiredError } from "../lib/oidc"
 
 type Props = {
+  siteId: string
   onAdded: () => void
   onClose: () => void
 }
 
-export function DiscoveryPanel({ onAdded, onClose }: Props) {
+export function DiscoveryPanel({ siteId, onAdded, onClose }: Props) {
   const [networks, setNetworks] = useState<DiscoveryNetwork[]>([])
   const [cidr, setCidr] = useState("")
   const [customCidr, setCustomCidr] = useState("")
@@ -84,8 +85,8 @@ export function DiscoveryPanel({ onAdded, onClose }: Props) {
     setAddingIPs((current) => new Set(current).add(candidate.ip))
     setError(null)
     try {
-      // Reverse DNS is a first-pass hostname; Agent hello/heartbeat can override later.
       await createHost({
+        site_id: siteId,
         address: candidate.ip,
         hostname: candidate.hostname || undefined,
       })
@@ -110,23 +111,13 @@ export function DiscoveryPanel({ onAdded, onClose }: Props) {
   }
 
   if (loadingStatus) {
-    return (
-      <section>
-        <div className="section-toolbar">
-          <h2>Discover LAN</h2>
-          <button type="button" className="secondary" onClick={onClose}>
-            Back
-          </button>
-        </div>
-        <p>Checking private networks…</p>
-      </section>
-    )
+    return <p className="sub">Checking private networks…</p>
   }
 
   return (
-    <section>
-      <div className="section-toolbar">
-        <h2>Discover LAN</h2>
+    <section className="discovery-panel">
+      <div className="section-toolbar site-hosts-toolbar">
+        <h3>Discover LAN</h3>
         <button type="button" className="secondary" onClick={onClose} disabled={scanning}>
           Back
         </button>
@@ -138,7 +129,7 @@ export function DiscoveryPanel({ onAdded, onClose }: Props) {
       </p>
 
       {networks.length > 0 ? (
-        <div className="credential-form" style={{ marginBottom: "1rem" }}>
+        <div className="credential-form discovery-form">
           <label>
             Detected network
             <select

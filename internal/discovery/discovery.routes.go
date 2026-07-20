@@ -7,6 +7,6 @@ import (
 
 func RegisterRoutes(r *gin.Engine, c *Controller, validator *portalauth.Validator) {
 	api := r.Group("/api", portalauth.Authenticate(validator))
-	api.GET("/inventory/discovery/status", c.status)
-	api.POST("/inventory/discovery/scan", c.scan)
+	api.GET("/discovery/status", c.status)
+	api.POST("/discovery/scan", c.scan)
 }
