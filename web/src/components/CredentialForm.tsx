@@ -163,19 +163,31 @@ export function CredentialForm({
   }
 
   const busy = saving || generating
+  const inputClass =
+    "mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+  const labelClass = "block text-sm font-medium text-zinc-800 dark:text-zinc-200"
+  const checkboxClass = "flex items-center gap-2 text-sm font-normal text-zinc-800 dark:text-zinc-200"
 
   return (
-    <form className="credential-form" onSubmit={(event) => void handleSubmit(event)}>
-      <h2>{editing ? "Edit credential" : "Add credential"}</h2>
+    <form className="max-w-lg space-y-4" onSubmit={(event) => void handleSubmit(event)}>
+      <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        {editing ? "Edit credential" : "Add credential"}
+      </h2>
 
-      <label>
+      <label className={labelClass}>
         Name
-        <input value={name} onChange={(event) => setName(event.target.value)} required />
+        <input
+          className={inputClass}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
       </label>
 
-      <label>
+      <label className={labelClass}>
         Type
         <select
+          className={inputClass}
           value={type}
           disabled={editing || generateSSHOnMount}
           onChange={(event) => {
@@ -193,15 +205,21 @@ export function CredentialForm({
         </select>
       </label>
 
-      <label>
+      <label className={labelClass}>
         Username
-        <input value={username} onChange={(event) => setUsername(event.target.value)} required />
+        <input
+          className={inputClass}
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          required
+        />
       </label>
 
       {type === "password" ? (
-        <label>
+        <label className={labelClass}>
           Password {editing ? "(leave blank to keep)" : ""}
           <input
+            className={inputClass}
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -211,24 +229,25 @@ export function CredentialForm({
         </label>
       ) : (
         <>
-          <div className="form-inline-actions">
+          <div className="space-y-1">
             <button
               type="button"
-              className="secondary"
+              className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-60"
               onClick={() => void handleGenerateSSH()}
               disabled={busy}
             >
               {generating ? "Generating…" : "Generate Ed25519 key"}
             </button>
-            <p className="sub form-hint">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
               Creates a key pair here so you can save the private key in the vault and copy the
               public key onto Hosts.
             </p>
           </div>
 
-          <label>
+          <label className={labelClass}>
             Private key (PEM) {editing ? "(leave blank to keep)" : ""}
             <textarea
+              className={`${inputClass} font-mono text-xs`}
               value={privateKey}
               onChange={(event) => {
                 setPrivateKey(event.target.value)
@@ -240,9 +259,10 @@ export function CredentialForm({
             />
           </label>
 
-          <label>
+          <label className={labelClass}>
             Key passphrase {editing ? "(leave blank to keep)" : "(optional)"}
             <input
+              className={inputClass}
               type="password"
               value={passphrase}
               onChange={(event) => {
@@ -256,7 +276,7 @@ export function CredentialForm({
             />
           </label>
           {editing && credential?.has_passphrase ? (
-            <label className="checkbox-row">
+            <label className={checkboxClass}>
               <input
                 type="checkbox"
                 checked={clearPassphrase}
@@ -272,23 +292,30 @@ export function CredentialForm({
           ) : null}
 
           {publicKeyPreview ? (
-            <label>
+            <label className={labelClass}>
               Public key (derived — copy to authorized_keys)
-              <textarea value={publicKeyPreview} readOnly rows={2} spellCheck={false} />
+              <textarea
+                className={`${inputClass} font-mono text-xs`}
+                value={publicKeyPreview}
+                readOnly
+                rows={2}
+                spellCheck={false}
+              />
             </label>
           ) : null}
         </>
       )}
 
-      <h3 className="form-section-title">Privilege escalation (become)</h3>
-      <p className="sub form-hint">
+      <h3 className="pt-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">Privilege escalation (become)</h3>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
         Ansible-style: login as the username above, then optionally escalate with sudo/su. LabKeeper
         does not change sudoers on the Host.
       </p>
 
-      <label>
+      <label className={labelClass}>
         Become method
         <select
+          className={inputClass}
           value={becomeMethod}
           onChange={(event) => setBecomeMethod(event.target.value as BecomeMethod)}
         >
@@ -300,17 +327,19 @@ export function CredentialForm({
 
       {becomeMethod !== "none" ? (
         <>
-          <label>
+          <label className={labelClass}>
             Become user
             <input
+              className={inputClass}
               value={becomeUser}
               onChange={(event) => setBecomeUser(event.target.value)}
               placeholder="root"
             />
           </label>
-          <label>
+          <label className={labelClass}>
             Become password {editing ? "(leave blank to keep)" : "(optional)"}
             <input
+              className={inputClass}
               type="password"
               value={becomeSecret}
               onChange={(event) => {
@@ -324,7 +353,7 @@ export function CredentialForm({
             />
           </label>
           {editing && credential?.has_become_secret ? (
-            <label className="checkbox-row">
+            <label className={checkboxClass}>
               <input
                 type="checkbox"
                 checked={clearBecomeSecret}
@@ -341,13 +370,22 @@ export function CredentialForm({
         </>
       ) : null}
 
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
 
-      <div className="header-actions">
-        <button type="submit" disabled={busy}>
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover dark:bg-neutral-200 dark:text-neutral-900 dark:hover:bg-white disabled:opacity-60"
+        >
           {saving ? "Saving…" : "Save"}
         </button>
-        <button type="button" className="secondary" onClick={onCancel} disabled={busy}>
+        <button
+          type="button"
+          className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-60"
+          onClick={onCancel}
+          disabled={busy}
+        >
           Cancel
         </button>
       </div>

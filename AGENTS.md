@@ -92,22 +92,28 @@ Agent:
 
 ## React SPA (Portal)
 
-- No Tailwind or shadcn for now; use plain CSS in `web/src/styles/`
+- Use Tailwind CSS (`@tailwindcss/vite`) for Portal layout and UI; Lucide (`lucide-react`) for icons; no shadcn for now
 - One component per file under `web/src/components/`
-- Route-level screens live in `web/src/pages/`
+- Route-level screens live in `web/src/pages/` (thin wrappers or auth-only pages)
 - Shared non-UI logic lives in `web/src/lib/`
-- `web/src/app/` holds router shell only
+- `web/src/app/` holds router shell only (`AppShell` layout + routes)
 - Do not put multiple components in a single page file
 
 ### Auth UX rules
 
-- `/` auto-redirects to SSO when unauthenticated; signed-in home shows **Sites** (expand a site to lazy-load its Hosts; CRUD + credential assign)
-- `/credentials` manages the encrypted Credentials vault (login secret; optional SSH key passphrase; optional `become_method` / `become_user` / become secret). List/get never return secrets — only `has_passphrase` / `has_become_secret` flags.
+- `/` auto-redirects to SSO when unauthenticated; authenticated users land on `/labkeeper`
+- Portal shell is Proxmox-like: left tree rooted at **LabKeeper** (Sites → Hosts); right detail pane
+- Routes: `/labkeeper` (global overview + Credentials vault), `/sites/:siteId`, `/sites/:siteId/hosts/:hostId`
+- Clicking **LabKeeper** in the tree shows global config including Credentials (not a separate tree node)
+- Hosts load lazily when a Site is expanded in the tree (`GET /api/inventory?site_id=`)
+- Portal follows system color scheme by default (`prefers-color-scheme`); users can toggle light/dark via the header button (stored in `localStorage`)
+- `/credentials` redirects to `/labkeeper`
+- Credentials vault (login secret; optional SSH key passphrase; optional `become_method` / `become_user` / become secret) is managed on the LabKeeper detail. List/get never return secrets — only `has_passphrase` / `has_become_secret` flags.
 - Inventory Hosts are persisted (`hosts` table) with required `site_id`. Agents upsert by `agent_fingerprint` (client cert) into the default Site (`Default`) until enrollment UI exists. Optional `credential_id` links one vault credential for future SSH. `cpu_cores` / `memory_bytes` are reserved for Agent discovery.
 - After editing embedded goose SQL in `migrations/00001_init.sql`, wipe local SQLite with `rm -rf data/` before restart.
-- LAN **Discover** appears inside a Site when that Site has `discovery_enabled` and the Server has a private (RFC1918) interface. Scans run on the Server (`/api/discovery/*`), max `/23`, ICMP (`ping`) + TCP `22/80/443/445`; results are candidates — never auto-added.
+- LAN **Discover** is on-demand from a Site detail when that Site has `discovery_enabled` and the Server has a private (RFC1918) interface. Scans run on the Server (`/api/discovery/*`), max `/23`, ICMP (`ping`) + TCP `22/80/443/445`; results are candidates — never auto-added.
 - `/login` stays on page and shows the SSO button (no auto redirect)
-- `/callback` completes OIDC and returns to `/`
+- `/callback` completes OIDC and returns to `/labkeeper`
 - Logout clears local session and uses min-idp RP logout with `post_logout_redirect_uri` = Portal `/login` (allowlisted on the OIDC client)
 
 ## Do not do this

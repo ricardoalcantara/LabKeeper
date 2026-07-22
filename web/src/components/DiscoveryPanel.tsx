@@ -14,11 +14,15 @@ type Props = {
   onClose: () => void
 }
 
+const inputClass =
+  "mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+
 export function DiscoveryPanel({ siteId, onAdded, onClose }: Props) {
   const [networks, setNetworks] = useState<DiscoveryNetwork[]>([])
   const [cidr, setCidr] = useState("")
   const [customCidr, setCustomCidr] = useState("")
   const [candidates, setCandidates] = useState<DiscoveryCandidate[]>([])
+  const [showInInventory, setShowInInventory] = useState(false)
   const [addingIPs, setAddingIPs] = useState<Set<string>>(() => new Set())
   const [error, setError] = useState<string | null>(null)
   const [loadingStatus, setLoadingStatus] = useState(true)
@@ -110,29 +114,40 @@ export function DiscoveryPanel({ siteId, onAdded, onClose }: Props) {
     }
   }
 
+  const visibleCandidates = showInInventory
+    ? candidates
+    : candidates.filter((candidate) => !candidate.already_known)
+  const knownCount = candidates.filter((candidate) => candidate.already_known).length
+
   if (loadingStatus) {
-    return <p className="sub">Checking private networks…</p>
+    return <p className="text-sm text-zinc-600 dark:text-zinc-400">Checking private networks…</p>
   }
 
   return (
-    <section className="discovery-panel">
-      <div className="section-toolbar site-hosts-toolbar">
-        <h3>Discover LAN</h3>
-        <button type="button" className="secondary" onClick={onClose} disabled={scanning}>
+    <section className="max-w-3xl space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Discover LAN</h2>
+        <button
+          type="button"
+          className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          onClick={onClose}
+          disabled={scanning}
+        >
           Back
         </button>
       </div>
 
-      <p className="sub form-hint">
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
         Scans from the Server on private RFC1918 networks only (max /23). Results are candidates —
         nothing is added until you click Add.
       </p>
 
       {networks.length > 0 ? (
-        <div className="credential-form discovery-form">
-          <label>
+        <div className="max-w-lg space-y-4">
+          <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
             Detected network
             <select
+              className={inputClass}
               value={cidr}
               onChange={(event) => {
                 setCidr(event.target.value)
@@ -148,9 +163,10 @@ export function DiscoveryPanel({ siteId, onAdded, onClose }: Props) {
             </select>
           </label>
 
-          <label>
+          <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
             Custom CIDR (optional override)
             <input
+              className={inputClass}
               value={customCidr}
               onChange={(event) => setCustomCidr(event.target.value)}
               placeholder="e.g. 192.168.0.0/23"
@@ -158,51 +174,81 @@ export function DiscoveryPanel({ siteId, onAdded, onClose }: Props) {
             />
           </label>
 
-          <div className="header-actions">
-            <button type="button" onClick={() => void handleScan()} disabled={scanning}>
-              {scanning ? "Scanning…" : "Scan"}
-            </button>
-          </div>
+          <button
+            type="button"
+            className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover dark:bg-neutral-200 dark:text-neutral-900 dark:hover:bg-white disabled:opacity-60"
+            onClick={() => void handleScan()}
+            disabled={scanning}
+          >
+            {scanning ? "Scanning…" : "Scan"}
+          </button>
         </div>
       ) : null}
 
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
 
       {candidates.length > 0 ? (
-        <table className="host-table">
-          <thead>
-            <tr>
-              <th>IP</th>
-              <th>Reverse DNS</th>
-              <th>Ports</th>
-              <th>Methods</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {candidates.map((candidate) => (
-              <tr key={candidate.ip} className={candidate.already_known ? "row-muted" : undefined}>
-                <td className="mono-cell">{candidate.ip}</td>
-                <td>{candidate.hostname || "—"}</td>
-                <td>{candidate.open_ports?.join(", ") || "—"}</td>
-                <td>{candidate.methods?.join(", ") || "—"}</td>
-                <td className="row-actions">
-                  {candidate.already_known ? (
-                    <span className="sub">In inventory</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void handleAdd(candidate)}
-                      disabled={addingIPs.has(candidate.ip)}
+        <div className="space-y-3">
+          <label className="inline-flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <input
+              type="checkbox"
+              className="rounded border-zinc-300 dark:border-zinc-600"
+              checked={showInInventory}
+              onChange={(event) => setShowInInventory(event.target.checked)}
+            />
+            Show in inventory
+            {knownCount > 0 ? (
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">({knownCount})</span>
+            ) : null}
+          </label>
+
+          {visibleCandidates.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              All scan results are already in inventory. Enable “Show in inventory” to list them.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-left text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+                    <th className="px-2 py-2 font-semibold">IP</th>
+                    <th className="px-2 py-2 font-semibold">Reverse DNS</th>
+                    <th className="px-2 py-2 font-semibold">Ports</th>
+                    <th className="px-2 py-2 font-semibold">Methods</th>
+                    <th className="px-2 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleCandidates.map((candidate) => (
+                    <tr
+                      key={candidate.ip}
+                      className={`border-b border-zinc-100 dark:border-zinc-800 ${candidate.already_known ? "opacity-50" : ""}`}
                     >
-                      {addingIPs.has(candidate.ip) ? "Adding…" : "Add"}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      <td className="px-2 py-2 font-mono text-xs">{candidate.ip}</td>
+                      <td className="px-2 py-2">{candidate.hostname || "—"}</td>
+                      <td className="px-2 py-2">{candidate.open_ports?.join(", ") || "—"}</td>
+                      <td className="px-2 py-2">{candidate.methods?.join(", ") || "—"}</td>
+                      <td className="px-2 py-2 text-right">
+                        {candidate.already_known ? (
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400">In inventory</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white hover:bg-accent-hover dark:bg-neutral-200 dark:text-neutral-900 dark:hover:bg-white disabled:opacity-60"
+                            onClick={() => void handleAdd(candidate)}
+                            disabled={addingIPs.has(candidate.ip)}
+                          >
+                            {addingIPs.has(candidate.ip) ? "Adding…" : "Add"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       ) : null}
     </section>
   )

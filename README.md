@@ -20,7 +20,7 @@ Do not call Inventory items “servers” — that word means the **Server** bin
 
 Minimal authenticated admin app:
 
-- **Portal** — React SPA with OIDC PKCE via [min-idp](https://github.com/ricardoalcantara/min-idp)
+- **Portal** — React SPA (Tailwind) with OIDC PKCE via [min-idp](https://github.com/ricardoalcantara/min-idp); Proxmox-like shell rooted at **LabKeeper** (Credentials + Sites → Hosts in the left tree; detail pane on the right)
 - **Server** — go-minstack API that validates JWTs, persists Inventory Hosts + encrypted Credentials
 - `GET /api/ping` — auth check
 - `/api/site` — Sites CRUD (JWT)
@@ -76,7 +76,7 @@ npm install
 npm run dev
 ```
 
-Open [http://labkeeper:5173](http://labkeeper:5173). Home manages **Sites** and Inventory Hosts per site (add/edit, assign credential); **Credentials** manages the vault. `/login` shows a manual SSO button. Logout returns to `/login`.
+Open [http://labkeeper:5173](http://labkeeper:5173). Signed-in UI is a split Inventory shell: left tree (**LabKeeper** → Credentials + Sites → Hosts), right detail pane. `/login` shows a manual SSO button. Logout returns to `/login`.
 
 If the IdP DB was bootstrapped with a different redirect URI, update the OIDC client or reset the Docker volume (`docker compose down -v`).
 
@@ -123,6 +123,7 @@ Expected flow: Agent connects → durable Inventory Host (UUID) appears online, 
 - [x] Assign credential → Host (`credential_id`)
 - [x] Private LAN discovery (candidates; manual add)
 - [x] Inventory Sites (Default site, cloud accounts; lazy-loaded hosts per site)
+- [x] Portal Proxmox-style shell (Tailwind; LabKeeper root → Credentials + Sites → Hosts)
 
 ### Next
 - [ ] Server-side SSH login/probe with vault credentials

@@ -18,6 +18,9 @@ type Props = {
   onSaved: () => void
 }
 
+const inputClass =
+  "mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+
 function formatMemory(bytes?: number): string {
   if (bytes == null || bytes <= 0) {
     return ""
@@ -153,52 +156,66 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
   }
 
   if (loading) {
-    return <p>Loading host…</p>
+    return <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading host…</p>
   }
 
   return (
-    <form className="credential-form" onSubmit={(event) => void handleSubmit(event)}>
-      <h2>{editing ? "Edit host" : "Add host"}</h2>
-      <p className="sub form-hint">
-        Pre-enroll a Host with an address and vault credential for future SSH. Agents attach later
-        by certificate fingerprint.
-      </p>
+    <form className="max-w-lg space-y-4" onSubmit={(event) => void handleSubmit(event)}>
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{editing ? "Edit host" : "Add host"}</h2>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          Pre-enroll a Host with an address and vault credential for future SSH. Agents attach later
+          by certificate fingerprint.
+        </p>
+      </div>
 
-      <label>
+      <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
         Name (optional label)
         <input
+          className={inputClass}
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="e.g. nas — leave empty to use hostname"
         />
       </label>
 
-      <label>
+      <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
         Hostname
         <input
+          className={inputClass}
           value={hostname}
           onChange={(event) => setHostname(event.target.value)}
           placeholder={editing ? "Reported by Agent when connected" : "optional"}
         />
       </label>
 
-      <label>
+      <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
         Address (SSH / reachability)
         <input
+          className={inputClass}
           value={address}
           onChange={(event) => setAddress(event.target.value)}
           placeholder="192.168.1.10 or host.lab"
         />
       </label>
 
-      <label>
+      <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
         OS
-        <input value={os} onChange={(event) => setOs(event.target.value)} placeholder="linux/amd64" />
+        <input
+          className={inputClass}
+          value={os}
+          onChange={(event) => setOs(event.target.value)}
+          placeholder="linux/amd64"
+        />
       </label>
 
-      <label>
+      <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
         Credential
-        <select value={credentialId} onChange={(event) => setCredentialId(event.target.value)}>
+        <select
+          className={inputClass}
+          value={credentialId}
+          onChange={(event) => setCredentialId(event.target.value)}
+        >
           <option value="">None</option>
           {credentials.map((credential) => (
             <option key={credential.id} value={credential.id}>
@@ -209,7 +226,7 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
       </label>
 
       {editing && loadedHost ? (
-        <p className="sub">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Status: {loadedHost.online ? "online" : "offline"}
           {loadedHost.cpu_cores != null ? ` · CPU ${loadedHost.cpu_cores}` : ""}
           {loadedHost.memory_bytes != null ? ` · RAM ${formatMemory(loadedHost.memory_bytes)}` : ""}
@@ -219,13 +236,22 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
         </p>
       ) : null}
 
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
 
-      <div className="header-actions">
-        <button type="submit" disabled={saving}>
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover dark:bg-neutral-200 dark:text-neutral-900 dark:hover:bg-white disabled:opacity-60"
+        >
           {saving ? "Saving…" : "Save"}
         </button>
-        <button type="button" className="secondary" onClick={onCancel} disabled={saving}>
+        <button
+          type="button"
+          className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          onClick={onCancel}
+          disabled={saving}
+        >
           Cancel
         </button>
       </div>

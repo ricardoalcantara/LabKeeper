@@ -5,8 +5,11 @@ import { SessionExpiredError } from "../lib/oidc"
 type Props = {
   site?: Site | null
   onCancel: () => void
-  onSaved: () => void
+  onSaved: (site: Site) => void
 }
+
+const inputClass =
+  "mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-normal text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
 
 export function SiteForm({ site, onCancel, onSaved }: Props) {
   const editing = Boolean(site)
@@ -26,18 +29,19 @@ export function SiteForm({ site, onCancel, onSaved }: Props) {
         setSaving(false)
         return
       }
+      let saved: Site
       if (editing && site) {
-        await updateSite(site.id, {
+        saved = await updateSite(site.id, {
           name: trimmedName,
           discovery_enabled: discoveryEnabled,
         })
       } else {
-        await createSite({
+        saved = await createSite({
           name: trimmedName,
           discovery_enabled: discoveryEnabled,
         })
       }
-      onSaved()
+      onSaved(saved)
     } catch (err) {
       if (err instanceof SessionExpiredError) {
         return
@@ -49,15 +53,18 @@ export function SiteForm({ site, onCancel, onSaved }: Props) {
   }
 
   return (
-    <form className="credential-form" onSubmit={(event) => void handleSubmit(event)}>
-      <h2>{editing ? "Edit site" : "Add site"}</h2>
-      <p className="sub form-hint">
-        A site groups Hosts by place or cloud account (e.g. Default, DigitalOcean, AWS).
-      </p>
+    <form className="max-w-lg space-y-4" onSubmit={(event) => void handleSubmit(event)}>
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{editing ? "Edit site" : "Add site"}</h2>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          A site groups Hosts by place or cloud account (e.g. Default, DigitalOcean, AWS).
+        </p>
+      </div>
 
-      <label>
+      <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
         Name
         <input
+          className={inputClass}
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="e.g. Default"
@@ -65,7 +72,7 @@ export function SiteForm({ site, onCancel, onSaved }: Props) {
         />
       </label>
 
-      <label className="checkbox-label">
+      <label className="flex items-center gap-2 text-sm font-normal text-zinc-800 dark:text-zinc-200">
         <input
           type="checkbox"
           checked={discoveryEnabled}
@@ -74,14 +81,23 @@ export function SiteForm({ site, onCancel, onSaved }: Props) {
         Enable LAN discovery for this site
       </label>
 
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
 
-      <div className="header-actions">
-        <button type="button" className="secondary" onClick={onCancel} disabled={saving}>
-          Cancel
-        </button>
-        <button type="submit" disabled={saving}>
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover dark:bg-neutral-200 dark:text-neutral-900 dark:hover:bg-white disabled:opacity-60"
+        >
           {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancel
         </button>
       </div>
     </form>

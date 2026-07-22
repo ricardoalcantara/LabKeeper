@@ -13,7 +13,7 @@ export function CallbackPage() {
       try {
         await handleCallback(window.location.search)
         if (!cancelled) {
-          navigate("/", { replace: true })
+          navigate("/labkeeper", { replace: true })
         }
       } catch (err) {
         if (!cancelled) {
@@ -28,9 +28,15 @@ export function CallbackPage() {
   }, [navigate])
 
   return (
-    <main className="card">
-      <h1>LabKeeper Portal</h1>
-      {error ? <p className="error">{error}</p> : <p>Completing sign-in…</p>}
+    <main className="mx-auto flex min-h-full max-w-lg flex-col justify-center px-6 py-12">
+      <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 shadow-sm">
+        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">LabKeeper Portal</h1>
+        {error ? (
+          <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
+        ) : (
+          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">Completing sign-in…</p>
+        )}
+      </div>
     </main>
   )
 }

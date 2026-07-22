@@ -15,7 +15,11 @@ export function LoginButton({ label, onError }: Props) {
   }
 
   return (
-    <button type="button" onClick={() => void handleClick()}>
+    <button
+      type="button"
+      className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover dark:bg-neutral-200 dark:text-neutral-900 dark:hover:bg-white"
+      onClick={() => void handleClick()}
+    >
       {label}
     </button>
   )
