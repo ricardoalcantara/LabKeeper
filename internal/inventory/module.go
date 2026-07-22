@@ -10,6 +10,8 @@ func Register(app *core.App) {
 	app.Provide(NewService)
 	app.Provide(NewController)
 	app.Provide(NewHub)
+	app.Provide(NewProbeLoop)
 	app.Invoke(RegisterRoutes)
 	app.Invoke(StartHub)
+	app.Invoke(StartProbeLoop)
 }

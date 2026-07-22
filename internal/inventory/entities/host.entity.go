@@ -2,6 +2,12 @@ package entities
 
 import "time"
 
+const (
+	ProbeMethodICMP = "icmp"
+	ProbeMethodTCP  = "tcp"
+	DefaultProbePort = 22
+)
+
 type Host struct {
 	ID               string     `gorm:"column:id;primaryKey"`
 	CreatedAt        time.Time  `gorm:"column:created_at;not null"`
@@ -16,8 +22,12 @@ type Host struct {
 	Subject          string     `gorm:"column:subject;not null"`
 	AgentFingerprint *string    `gorm:"column:agent_fingerprint;uniqueIndex"`
 	Online           bool       `gorm:"column:online;not null"`
+	AgentOnline      bool       `gorm:"column:agent_online;not null"`
 	ConnectedAt      *time.Time `gorm:"column:connected_at"`
 	LastSeen         *time.Time `gorm:"column:last_seen"`
+	LastProbeAt      *time.Time `gorm:"column:last_probe_at"`
+	ProbeMethod      string     `gorm:"column:probe_method;not null"`
+	ProbePort        int        `gorm:"column:probe_port;not null"`
 	CPUCores         *int       `gorm:"column:cpu_cores"`
 	MemoryBytes      *int64     `gorm:"column:memory_bytes"`
 	CredentialID     *string    `gorm:"column:credential_id"`

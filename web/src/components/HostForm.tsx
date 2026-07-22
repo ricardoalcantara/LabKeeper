@@ -41,6 +41,8 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
   const [address, setAddress] = useState(host?.address ?? "")
   const [os, setOs] = useState(host?.os ?? "")
   const [credentialId, setCredentialId] = useState(host?.credential_id ?? "")
+  const [probeMethod, setProbeMethod] = useState<"icmp" | "tcp">(host?.probe_method ?? "icmp")
+  const [probePort, setProbePort] = useState(String(host?.probe_port ?? 22))
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -54,6 +56,8 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
       setAddress(host.address ?? "")
       setOs(host.os ?? "")
       setCredentialId(host.credential_id ?? "")
+      setProbeMethod(host.probe_method ?? "icmp")
+      setProbePort(String(host.probe_port ?? 22))
       setLoading(false)
       return
     }
@@ -73,6 +77,8 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
           setAddress(row.address ?? "")
           setOs(row.os ?? "")
           setCredentialId(row.credential_id ?? "")
+          setProbeMethod(row.probe_method ?? "icmp")
+          setProbePort(String(row.probe_port ?? 22))
         }
       } catch (err) {
         if (cancelled || err instanceof SessionExpiredError) {
@@ -123,6 +129,16 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
         setSaving(false)
         return
       }
+      const port = Number.parseInt(probePort, 10)
+      if (probeMethod === "tcp" && (!Number.isFinite(port) || port < 1 || port > 65535)) {
+        setError("TCP probe port must be between 1 and 65535")
+        setSaving(false)
+        return
+      }
+      const probe = {
+        probe_method: probeMethod,
+        probe_port: probeMethod === "tcp" ? port : 22,
+      }
       if (editing && loadedHost) {
         await updateHost(loadedHost.id, {
           name: trimmedName,
@@ -130,6 +146,7 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
           address: trimmedAddress,
           os: os.trim(),
           credential_id: credentialId,
+          ...probe,
         })
       } else {
         const input: CreateHostInput = {
@@ -138,6 +155,7 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
           hostname: trimmedHostname || undefined,
           address: trimmedAddress || undefined,
           os: os.trim() || undefined,
+          ...probe,
         }
         if (credentialId) {
           input.credential_id = credentialId
@@ -210,6 +228,32 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
       </label>
 
       <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
+        Reachability probe
+        <select
+          className={inputClass}
+          value={probeMethod}
+          onChange={(event) => setProbeMethod(event.target.value as "icmp" | "tcp")}
+        >
+          <option value="icmp">ICMP (ping)</option>
+          <option value="tcp">TCP port</option>
+        </select>
+      </label>
+
+      {probeMethod === "tcp" ? (
+        <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
+          Probe port
+          <input
+            className={inputClass}
+            type="number"
+            min={1}
+            max={65535}
+            value={probePort}
+            onChange={(event) => setProbePort(event.target.value)}
+          />
+        </label>
+      ) : null}
+
+      <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
         Credential
         <select
           className={inputClass}
@@ -227,7 +271,12 @@ export function HostForm({ siteId, host, hostId, onCancel, onSaved }: Props) {
 
       {editing && loadedHost ? (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Status: {loadedHost.online ? "online" : "offline"}
+          Status:{" "}
+          {loadedHost.online
+            ? loadedHost.agent_online
+              ? "online · Agent connected"
+              : "reachable · Agent offline"
+            : "offline"}
           {loadedHost.cpu_cores != null ? ` · CPU ${loadedHost.cpu_cores}` : ""}
           {loadedHost.memory_bytes != null ? ` · RAM ${formatMemory(loadedHost.memory_bytes)}` : ""}
           {loadedHost.agent_fingerprint

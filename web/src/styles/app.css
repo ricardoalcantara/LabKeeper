@@ -10,6 +10,7 @@
   --color-accent: #52525b;
   --color-accent-hover: #3f3f46;
   --color-status-online: #16a34a;
+  --color-status-reachable: #ca8a04;
   --color-status-offline: #dc2626;
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;

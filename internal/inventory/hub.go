@@ -54,8 +54,8 @@ func StartHub(lc fx.Lifecycle, hub *Hub) {
 }
 
 func (h *Hub) start() error {
-	if err := h.service.MarkAllOffline(); err != nil {
-		return fmt.Errorf("mark hosts offline: %w", err)
+	if err := h.service.MarkAllAgentsOffline(); err != nil {
+		return fmt.Errorf("mark agents offline: %w", err)
 	}
 
 	paths := pki.DefaultPaths()
@@ -134,7 +134,7 @@ func (h *Hub) websocketHandler() http.Handler {
 			h.log.Error("inventory upsert on connect", "error", err)
 		}
 		defer func() {
-			if err := h.service.MarkOffline(fingerprint); err != nil {
+			if err := h.service.MarkAgentOffline(fingerprint); err != nil {
 				h.log.Error("inventory mark offline", "error", err)
 			}
 		}()

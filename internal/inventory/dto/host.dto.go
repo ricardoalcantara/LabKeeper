@@ -21,8 +21,12 @@ type HostResponse struct {
 	Subject          string             `json:"subject,omitempty"`
 	AgentFingerprint string             `json:"agent_fingerprint,omitempty"`
 	Online           bool               `json:"online"`
+	AgentOnline      bool               `json:"agent_online"`
 	ConnectedAt      *time.Time         `json:"connected_at,omitempty"`
 	LastSeen         *time.Time         `json:"last_seen,omitempty"`
+	LastProbeAt      *time.Time         `json:"last_probe_at,omitempty"`
+	ProbeMethod      string             `json:"probe_method"`
+	ProbePort        int                `json:"probe_port"`
 	CPUCores         *int               `json:"cpu_cores,omitempty"`
 	MemoryBytes      *int64             `json:"memory_bytes,omitempty"`
 	CredentialID     string             `json:"credential_id,omitempty"`
@@ -42,6 +46,8 @@ type CreateHostRequest struct {
 	Address      string `json:"address"`
 	OS           string `json:"os"`
 	CredentialID string `json:"credential_id"`
+	ProbeMethod  string `json:"probe_method"`
+	ProbePort    *int   `json:"probe_port"`
 }
 
 type UpdateHostRequest struct {
@@ -51,4 +57,6 @@ type UpdateHostRequest struct {
 	Address      *string `json:"address"`
 	OS           *string `json:"os"`
 	CredentialID *string `json:"credential_id"`
+	ProbeMethod  *string `json:"probe_method"`
+	ProbePort    *int    `json:"probe_port"`
 }

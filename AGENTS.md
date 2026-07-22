@@ -25,6 +25,7 @@ Do **not** call Inventory items “servers” — **Server** is the LabKeeper Ad
 - `internal/site/` — Sites CRUD API (`/api/site`)
 - `internal/inventory/` — Inventory Hosts (DB), Agent hub, Hosts CRUD API (`/api/inventory`)
 - `internal/discovery/` — private LAN discovery (ICMP + TCP; JWT; `/api/discovery`)
+- `internal/netprobe/` — shared ICMP ping + TCP dial used by discovery and inventory probe
 - `internal/credentials/` — encrypted Credentials vault (password / SSH key + optional key passphrase + Ansible-style become)
 - `internal/crypto/` — `CryptoService` (AES-GCM via `LABKEEPER_MASTER_KEY`)
 - `internal/storage/` — multi-driver GORM (`LABKEEPER_DB_*`)
@@ -73,6 +74,7 @@ Server (`.env`):
 - `LABKEEPER_DB_DRIVER` — `sqlite` | `mysql` | `postgres` (default `sqlite`)
 - `LABKEEPER_DB_DSN` — e.g. `./data/labkeeper.db`
 - `LABKEEPER_MASTER_KEY` — base64 32-byte AES key (`openssl rand -base64 32`)
+- `LABKEEPER_PROBE_INTERVAL` — inventory reachability probe tick (default `15s`)
 
 Portal (`web/.env`):
 
@@ -110,6 +112,7 @@ Agent:
 - `/credentials` redirects to `/labkeeper`
 - Credentials vault (login secret; optional SSH key passphrase; optional `become_method` / `become_user` / become secret) is managed on the LabKeeper detail. List/get never return secrets — only `has_passphrase` / `has_become_secret` flags.
 - Inventory Hosts are persisted (`hosts` table) with required `site_id`. Agents upsert by `agent_fingerprint` (client cert) into the default Site (`Default`) until enrollment UI exists. Optional `credential_id` links one vault credential for future SSH. `cpu_cores` / `memory_bytes` are reserved for Agent discovery.
+- **Reachability**: `agent_online` = Agent WebSocket connected; `online` = Agent connected **or** Server probe succeeded. Per-host `probe_method` (`icmp` default | `tcp`) + `probe_port` (TCP only). Server goroutine probes agent-offline hosts with a non-empty `address` on `LABKEEPER_PROBE_INTERVAL` — Portal only polls inventory (no run-probe API). Tree/detail: green = Agent up; amber “reachable · Agent offline” when probe succeeds without Agent; red = offline.
 - After editing embedded goose SQL in `migrations/00001_init.sql`, wipe local SQLite with `rm -rf data/` before restart.
 - LAN **Discover** is on-demand from a Site detail when that Site has `discovery_enabled` and the Server has a private (RFC1918) interface. Scans run on the Server (`/api/discovery/*`), max `/23`, ICMP (`ping`) + TCP `22/80/443/445`; results are candidates — never auto-added.
 - `/login` stays on page and shows the SSO button (no auto redirect)

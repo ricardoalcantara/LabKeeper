@@ -47,8 +47,12 @@ export type Host = {
   ips?: string[]
   remote_addr?: string
   online: boolean
+  agent_online: boolean
   connected_at?: string
   last_seen?: string
+  last_probe_at?: string
+  probe_method: "icmp" | "tcp"
+  probe_port: number
   cpu_cores?: number
   memory_bytes?: number
   credential_id?: string
@@ -68,6 +72,8 @@ export type CreateHostInput = {
   address?: string
   os?: string
   credential_id?: string
+  probe_method?: "icmp" | "tcp"
+  probe_port?: number
 }
 
 export type UpdateHostInput = {
@@ -77,6 +83,8 @@ export type UpdateHostInput = {
   address?: string
   os?: string
   credential_id?: string
+  probe_method?: "icmp" | "tcp"
+  probe_port?: number
 }
 
 export type BecomeMethod = "none" | "sudo" | "su"

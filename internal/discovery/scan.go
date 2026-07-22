@@ -5,18 +5,16 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os/exec"
-	"runtime"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
+
+	"github.com/ricardoalcantara/LabKeeper/internal/netprobe"
 )
 
 const (
 	maxHosts       = 512
 	scanWorkers    = 64
-	tcpTimeout     = 300 * time.Millisecond
 	dnsTimeout     = 400 * time.Millisecond
 	overallTimeout = 60 * time.Second
 )
@@ -164,12 +162,12 @@ func probeHost(ctx context.Context, ip netip.Addr) (Candidate, bool) {
 	methods := make([]string, 0, 2)
 
 	start := time.Now()
-	if pingHost(ctx, ipStr) {
+	if netprobe.Ping(ctx, ipStr) {
 		methods = append(methods, "icmp")
 		cand.RTTMs = time.Since(start).Milliseconds()
 	}
 
-	ports := probeTCP(ctx, ipStr)
+	ports := netprobe.TCPPorts(ctx, ipStr, tcpPorts)
 	if len(ports) > 0 {
 		methods = append(methods, "tcp")
 		cand.OpenPorts = ports
@@ -184,50 +182,6 @@ func probeHost(ctx context.Context, ip netip.Addr) (Candidate, bool) {
 	cand.Methods = methods
 	cand.Hostname = lookupHostname(ctx, ipStr)
 	return cand, true
-}
-
-func pingHost(ctx context.Context, ip string) bool {
-	args := pingArgs(ip)
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-	if err := cmd.Run(); err != nil {
-		return false
-	}
-	return true
-}
-
-func pingArgs(ip string) []string {
-	switch runtime.GOOS {
-	case "windows":
-		return []string{"ping", "-n", "1", "-w", "1000", ip}
-	default:
-		// Linux/iputils: -W timeout seconds; macOS uses -W in ms — use -c 1 -W 1.
-		return []string{"ping", "-c", "1", "-W", "1", ip}
-	}
-}
-
-func probeTCP(ctx context.Context, ip string) []int {
-	open := make([]int, 0, len(tcpPorts))
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	for _, port := range tcpPorts {
-		wg.Add(1)
-		go func(port int) {
-			defer wg.Done()
-			dialer := net.Dialer{Timeout: tcpTimeout}
-			conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(ip, strconv.Itoa(port)))
-			if err != nil {
-				return
-			}
-			_ = conn.Close()
-			mu.Lock()
-			open = append(open, port)
-			mu.Unlock()
-		}(port)
-	}
-	wg.Wait()
-	sort.Ints(open)
-	return open
 }
 
 func lookupHostname(ctx context.Context, ip string) string {

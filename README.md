@@ -28,6 +28,7 @@ Minimal authenticated admin app:
 - `/api/discovery` — private LAN scan (JWT; Server-local; candidates only, no auto-add)
 - `/api/credentials` — encrypted vault (password / SSH key; optional key passphrase; Ansible-style become `none|sudo|su` + become user/secret; JWT; secrets never returned on GET)
 - Hosts belong to one Site (`site_id`); may link one vault credential (`credential_id`) for future SSH; `cpu_cores` / `memory_bytes` reserved for Agent discovery
+- Per-host reachability probe (`probe_method` `icmp`|`tcp`, default ICMP): Server loop updates `online` when the Agent is offline; `agent_online` tracks WebSocket presence. Portal polls inventory only.
 
 Discovery is enabled per Site (`discovery_enabled`) when the Server has a private RFC1918 address. Scans accept interface CIDRs or a custom private CIDR up to `/23`, using ICMP (`ping`) plus TCP probes. The Portal **Discover** panel (inside an enabled Site) prefills Add host — nothing is enrolled automatically.
 
@@ -105,7 +106,7 @@ Useful env / flags:
 - `LABKEEPER_RETRY_INTERVAL` / `-retry-interval`
 - `LABKEEPER_CA_CERT`, `LABKEEPER_CLIENT_CERT`, `LABKEEPER_CLIENT_KEY`
 
-Expected flow: Agent connects → durable Inventory Host (UUID) appears online, keyed by cert fingerprint → heartbeats keep `last_seen` fresh. Hosts survive Server restart (marked offline until reconnect). Pre-enroll Hosts in the Portal with address + credential before an Agent exists.
+Expected flow: Agent connects → durable Inventory Host (UUID) appears online with `agent_online`, keyed by cert fingerprint → heartbeats keep `last_seen` fresh. On disconnect or Server restart, `agent_online` clears; the Server probe loop (ICMP/TCP per host, `LABKEEPER_PROBE_INTERVAL` default `15s`) may keep `online` true when the address answers. Pre-enroll Hosts in the Portal with address + credential + probe settings before an Agent exists.
 
 ## Todo
 
@@ -124,6 +125,7 @@ Expected flow: Agent connects → durable Inventory Host (UUID) appears online, 
 - [x] Private LAN discovery (candidates; manual add)
 - [x] Inventory Sites (Default site, cloud accounts; lazy-loaded hosts per site)
 - [x] Portal Proxmox-style shell (Tailwind; LabKeeper root → Credentials + Sites → Hosts)
+- [x] Inventory reachability probe (Agent presence + ICMP/TCP fallback; Portal status poll only)
 
 ### Next
 - [ ] Server-side SSH login/probe with vault credentials

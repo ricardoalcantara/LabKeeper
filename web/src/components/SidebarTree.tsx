@@ -18,6 +18,26 @@ function hostLabel(host: Host): string {
   return host.name || host.hostname || host.subject || host.id.slice(0, 8)
 }
 
+function hostStatusTitle(host: Host): string {
+  if (host.online && host.agent_online) {
+    return "Online · Agent connected"
+  }
+  if (host.online) {
+    return "Reachable · Agent offline"
+  }
+  return "Offline"
+}
+
+function hostStatusColor(host: Host): string {
+  if (host.online && host.agent_online) {
+    return "var(--color-status-online)"
+  }
+  if (host.online) {
+    return "var(--color-status-reachable)"
+  }
+  return "var(--color-status-offline)"
+}
+
 export function SidebarTree() {
   const { refreshKey } = useInventoryTree()
   const navigate = useNavigate()
@@ -183,16 +203,32 @@ export function SidebarTree() {
                           key={host.id}
                           to={`/sites/${site.id}/hosts/${host.id}`}
                           className={treeLinkClass}
-                          title={host.online ? "Online" : "Offline"}
+                          title={hostStatusTitle(host)}
                         >
                           <span className="relative inline-flex shrink-0">
-                            <Monitor className={iconClass} strokeWidth={1.75} aria-hidden />
+                            <Monitor
+                              className={[
+                                iconClass,
+                                host.online && !host.agent_online ? "opacity-50" : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              strokeWidth={1.75}
+                              aria-hidden
+                            />
                             <span
-                              className="absolute -right-0.5 -bottom-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-sidebar dark:ring-zinc-900"
+                              className={[
+                                "absolute -right-0.5 -bottom-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-sidebar dark:ring-zinc-900",
+                                host.online && !host.agent_online ? "outline outline-1 outline-offset-0" : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
                               style={{
-                                backgroundColor: host.online
-                                  ? "var(--color-status-online)"
-                                  : "var(--color-status-offline)",
+                                backgroundColor: hostStatusColor(host),
+                                outlineColor:
+                                  host.online && !host.agent_online
+                                    ? "var(--color-status-reachable)"
+                                    : undefined,
                               }}
                               aria-hidden
                             />

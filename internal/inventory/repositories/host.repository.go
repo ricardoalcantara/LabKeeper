@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"errors"
+	"time"
 
 	"github.com/ricardoalcantara/LabKeeper/internal/inventory/entities"
 	"gorm.io/gorm"
@@ -71,8 +72,30 @@ func (r *HostRepository) Delete(id string) error {
 	return nil
 }
 
-func (r *HostRepository) MarkAllOffline() error {
-	return r.db.Model(&entities.Host{}).Where("online = ?", true).Updates(map[string]any{
+func (r *HostRepository) MarkAllAgentsOffline() error {
+	if err := r.db.Model(&entities.Host{}).Where("agent_online = ?", true).Updates(map[string]any{
+		"agent_online": false,
+	}).Error; err != nil {
+		return err
+	}
+	// Without an address the probe loop cannot refresh reachability — force offline.
+	return r.db.Model(&entities.Host{}).Where("address = ? OR address IS NULL", "").Updates(map[string]any{
 		"online": false,
+	}).Error
+}
+
+func (r *HostRepository) ListProbeTargets() ([]entities.Host, error) {
+	var rows []entities.Host
+	if err := r.db.Where("agent_online = ? AND address != ?", false, "").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *HostRepository) ApplyProbeResult(id string, online bool, probedAt time.Time) error {
+	return r.db.Model(&entities.Host{}).Where("id = ? AND agent_online = ?", id, false).Updates(map[string]any{
+		"online":        online,
+		"last_probe_at": probedAt,
+		"updated_at":    probedAt,
 	}).Error
 }

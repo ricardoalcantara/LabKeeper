@@ -20,6 +20,7 @@ var (
 	ErrInvalidCredential = errors.New("credential not found")
 	ErrInvalidSite       = errors.New("site not found")
 	ErrMissingSite       = errors.New("site_id is required")
+	ErrInvalidProbe      = errors.New("invalid probe settings")
 )
 
 type Service struct {
@@ -36,8 +37,10 @@ func NewService(
 	return &Service{hosts: hosts, credentials: credentials, sites: sites}
 }
 
-func (s *Service) MarkAllOffline() error {
-	return s.hosts.MarkAllOffline()
+// MarkAllAgentsOffline clears Agent WebSocket presence after Server restart.
+// Reachability (`online`) is left for the probe loop to refresh.
+func (s *Service) MarkAllAgentsOffline() error {
+	return s.hosts.MarkAllAgentsOffline()
 }
 
 func (s *Service) UpsertFromAgent(fingerprint, subject, remoteAddr, hostname, osName string, ips []string) (dto.HostResponse, error) {
@@ -62,8 +65,11 @@ func (s *Service) UpsertFromAgent(fingerprint, subject, remoteAddr, hostname, os
 			Subject:          subject,
 			AgentFingerprint: &fp,
 			Online:           true,
+			AgentOnline:      true,
 			ConnectedAt:      &now,
 			LastSeen:         &now,
+			ProbeMethod:      entities.ProbeMethodICMP,
+			ProbePort:        entities.DefaultProbePort,
 		}
 		if err := s.hosts.Create(row); err != nil {
 			return dto.HostResponse{}, err
@@ -83,6 +89,7 @@ func (s *Service) UpsertFromAgent(fingerprint, subject, remoteAddr, hostname, os
 		row.IPs = encodeIPs(ips)
 	}
 	row.Online = true
+	row.AgentOnline = true
 	row.LastSeen = &now
 	row.UpdatedAt = now
 	if row.ConnectedAt == nil {
@@ -114,6 +121,7 @@ func (s *Service) Heartbeat(fingerprint, hostname, osName string, ips []string) 
 		row.IPs = encodeIPs(ips)
 	}
 	row.Online = true
+	row.AgentOnline = true
 	row.LastSeen = &now
 	row.UpdatedAt = now
 	if err := s.hosts.Update(row); err != nil {
@@ -123,7 +131,8 @@ func (s *Service) Heartbeat(fingerprint, hostname, osName string, ips []string) 
 	return resp, true, err
 }
 
-func (s *Service) MarkOffline(fingerprint string) error {
+// MarkAgentOffline clears WebSocket presence; probe loop owns `online` afterward.
+func (s *Service) MarkAgentOffline(fingerprint string) error {
 	row, err := s.hosts.GetByFingerprint(fingerprint)
 	if err != nil {
 		if errors.Is(err, repositories.ErrNotFound) {
@@ -132,7 +141,10 @@ func (s *Service) MarkOffline(fingerprint string) error {
 		return err
 	}
 	now := time.Now().UTC()
-	row.Online = false
+	row.AgentOnline = false
+	if strings.TrimSpace(row.Address) == "" {
+		row.Online = false
+	}
 	row.LastSeen = &now
 	row.UpdatedAt = now
 	return s.hosts.Update(row)
@@ -189,18 +201,26 @@ func (s *Service) Create(req dto.CreateHostRequest) (*dto.HostResponse, error) {
 		return nil, err
 	}
 
+	method, port, err := normalizeProbe(req.ProbeMethod, req.ProbePort)
+	if err != nil {
+		return nil, err
+	}
+
 	now := time.Now().UTC()
 	row := &entities.Host{
-		ID:        uuid.NewString(),
-		CreatedAt: now,
-		UpdatedAt: now,
-		SiteID:    siteID,
-		Name:      strings.TrimSpace(req.Name),
-		Hostname:  strings.TrimSpace(req.Hostname),
-		Address:   strings.TrimSpace(req.Address),
-		OS:        strings.TrimSpace(req.OS),
-		IPs:       "[]",
-		Online:    false,
+		ID:          uuid.NewString(),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		SiteID:      siteID,
+		Name:        strings.TrimSpace(req.Name),
+		Hostname:    strings.TrimSpace(req.Hostname),
+		Address:     strings.TrimSpace(req.Address),
+		OS:          strings.TrimSpace(req.OS),
+		IPs:         "[]",
+		Online:      false,
+		AgentOnline: false,
+		ProbeMethod: method,
+		ProbePort:   port,
 	}
 	if credID := strings.TrimSpace(req.CredentialID); credID != "" {
 		if err := s.ensureCredential(credID); err != nil {
@@ -256,6 +276,25 @@ func (s *Service) Update(id string, req dto.UpdateHostRequest) (*dto.HostRespons
 			row.CredentialID = &credID
 		}
 	}
+	if req.ProbeMethod != nil || req.ProbePort != nil {
+		method := row.ProbeMethod
+		if req.ProbeMethod != nil {
+			method = *req.ProbeMethod
+		}
+		var portPtr *int
+		if req.ProbePort != nil {
+			portPtr = req.ProbePort
+		} else {
+			p := row.ProbePort
+			portPtr = &p
+		}
+		normalizedMethod, normalizedPort, err := normalizeProbe(method, portPtr)
+		if err != nil {
+			return nil, err
+		}
+		row.ProbeMethod = normalizedMethod
+		row.ProbePort = normalizedPort
+	}
 	row.UpdatedAt = time.Now().UTC()
 	if err := s.hosts.Update(row); err != nil {
 		return nil, err
@@ -269,6 +308,14 @@ func (s *Service) Update(id string, req dto.UpdateHostRequest) (*dto.HostRespons
 
 func (s *Service) Delete(id string) error {
 	return s.hosts.Delete(id)
+}
+
+func (s *Service) ListProbeTargets() ([]entities.Host, error) {
+	return s.hosts.ListProbeTargets()
+}
+
+func (s *Service) ApplyProbeResult(id string, online bool) error {
+	return s.hosts.ApplyProbeResult(id, online, time.Now().UTC())
 }
 
 // KnownAddresses returns address/IP strings already present in Inventory.
@@ -289,6 +336,24 @@ func (s *Service) KnownAddresses() (map[string]struct{}, error) {
 		}
 	}
 	return known, nil
+}
+
+func normalizeProbe(method string, portPtr *int) (string, int, error) {
+	method = strings.ToLower(strings.TrimSpace(method))
+	if method == "" {
+		method = entities.ProbeMethodICMP
+	}
+	if method != entities.ProbeMethodICMP && method != entities.ProbeMethodTCP {
+		return "", 0, fmt.Errorf("%w: method must be icmp or tcp", ErrInvalidProbe)
+	}
+	port := entities.DefaultProbePort
+	if portPtr != nil {
+		port = *portPtr
+	}
+	if port < 1 || port > 65535 {
+		return "", 0, fmt.Errorf("%w: port must be 1-65535", ErrInvalidProbe)
+	}
+	return method, port, nil
 }
 
 func (s *Service) ensureCredential(id string) error {
@@ -312,6 +377,14 @@ func (s *Service) ensureSite(id string) error {
 }
 
 func (s *Service) toResponse(row *entities.Host) (dto.HostResponse, error) {
+	method := row.ProbeMethod
+	if method == "" {
+		method = entities.ProbeMethodICMP
+	}
+	port := row.ProbePort
+	if port == 0 {
+		port = entities.DefaultProbePort
+	}
 	resp := dto.HostResponse{
 		ID:          row.ID,
 		SiteID:      row.SiteID,
@@ -323,8 +396,12 @@ func (s *Service) toResponse(row *entities.Host) (dto.HostResponse, error) {
 		RemoteAddr:  row.RemoteAddr,
 		Subject:     row.Subject,
 		Online:      row.Online,
+		AgentOnline: row.AgentOnline,
 		ConnectedAt: row.ConnectedAt,
 		LastSeen:    row.LastSeen,
+		LastProbeAt: row.LastProbeAt,
+		ProbeMethod: method,
+		ProbePort:   port,
 		CPUCores:    row.CPUCores,
 		MemoryBytes: row.MemoryBytes,
 		CreatedAt:   row.CreatedAt,

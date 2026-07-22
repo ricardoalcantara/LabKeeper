@@ -22,6 +22,26 @@ function displayName(host: Host): string {
   return host.name || host.hostname || host.subject || host.id.slice(0, 12)
 }
 
+function statusLabel(host: Host): string {
+  if (host.online && host.agent_online) {
+    return "online · Agent connected"
+  }
+  if (host.online) {
+    return "reachable · Agent offline"
+  }
+  return "offline"
+}
+
+function statusClass(host: Host): string {
+  if (host.online && host.agent_online) {
+    return "font-medium text-status-online"
+  }
+  if (host.online) {
+    return "font-medium text-status-reachable"
+  }
+  return "font-medium text-status-offline"
+}
+
 export function HostDetail() {
   const { siteId, hostId } = useParams<{ siteId: string; hostId: string }>()
   const navigate = useNavigate()
@@ -124,10 +144,7 @@ export function HostDetail() {
             {displayName(host)}
           </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Host ·{" "}
-            <span className={host.online ? "font-medium text-status-online" : "font-medium text-status-offline"}>
-              {host.online ? "online" : "offline"}
-            </span>
+            Host · <span className={statusClass(host)}>{statusLabel(host)}</span>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -167,9 +184,21 @@ export function HostDetail() {
         <dd>{host.credential?.name || "—"}</dd>
         <dt className="font-medium text-zinc-600 dark:text-zinc-400">Last seen</dt>
         <dd>{host.last_seen ? new Date(host.last_seen).toLocaleString() : "—"}</dd>
+        <dt className="font-medium text-zinc-600 dark:text-zinc-400">Probe</dt>
+        <dd>
+          {host.probe_method === "tcp" ? `TCP :${host.probe_port}` : "ICMP"}
+          {host.last_probe_at
+            ? ` · last ${new Date(host.last_probe_at).toLocaleString()}`
+            : ""}
+        </dd>
         <dt className="font-medium text-zinc-600 dark:text-zinc-400">Agent</dt>
         <dd className="font-mono text-xs">
-          {host.agent_fingerprint ? `${host.agent_fingerprint.slice(0, 16)}…` : "none"}
+          {host.agent_online
+            ? "connected"
+            : host.agent_fingerprint
+              ? "offline"
+              : "none"}
+          {host.agent_fingerprint ? ` · ${host.agent_fingerprint.slice(0, 16)}…` : ""}
         </dd>
         <dt className="font-medium text-zinc-600 dark:text-zinc-400">ID</dt>
         <dd className="font-mono text-xs text-zinc-700 dark:text-zinc-300">{host.id}</dd>
