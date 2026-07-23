@@ -8,7 +8,7 @@ import {
   Plus,
 } from "lucide-react"
 import { NavLink, useNavigate, useParams } from "react-router-dom"
-import { fetchInventory, fetchSites, type Host, type Site } from "../lib/api"
+import { fetchHost, fetchInventory, fetchSites, type Host, type Site } from "../lib/api"
 import { useInventoryTree } from "../lib/inventoryTree"
 import { SessionExpiredError } from "../lib/oidc"
 
@@ -80,6 +80,36 @@ export function SidebarTree() {
       })
     }
   }, [params.siteId])
+
+  useEffect(() => {
+    if (!params.hostId) {
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const host = await fetchHost(params.hostId!)
+        if (!cancelled && host.site_id) {
+          setExpanded((current) => {
+            if (current.has(host.site_id)) {
+              return current
+            }
+            const next = new Set(current)
+            next.add(host.site_id)
+            return next
+          })
+        }
+      } catch (err) {
+        if (cancelled || err instanceof SessionExpiredError) {
+          return
+        }
+        // Host missing or load failed — tree stays as-is; detail pane shows the error.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [params.hostId])
 
   useEffect(() => {
     const siteIds = [...expanded]
@@ -201,7 +231,7 @@ export function SidebarTree() {
                       hosts.map((host) => (
                         <NavLink
                           key={host.id}
-                          to={`/sites/${site.id}/hosts/${host.id}`}
+                          to={`/hosts/${host.id}`}
                           className={treeLinkClass}
                           title={hostStatusTitle(host)}
                         >

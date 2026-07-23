@@ -72,21 +72,15 @@ func (r *HostRepository) Delete(id string) error {
 	return nil
 }
 
-func (r *HostRepository) MarkAllAgentsOffline() error {
-	if err := r.db.Model(&entities.Host{}).Where("agent_online = ?", true).Updates(map[string]any{
+func (r *HostRepository) ClearAllAgentOnline() error {
+	return r.db.Model(&entities.Host{}).Where("agent_online = ?", true).Updates(map[string]any{
 		"agent_online": false,
-	}).Error; err != nil {
-		return err
-	}
-	// Without an address the probe loop cannot refresh reachability — force offline.
-	return r.db.Model(&entities.Host{}).Where("address = ? OR address IS NULL", "").Updates(map[string]any{
-		"online": false,
 	}).Error
 }
 
-func (r *HostRepository) ListProbeTargets() ([]entities.Host, error) {
+func (r *HostRepository) ListAgentOffline() ([]entities.Host, error) {
 	var rows []entities.Host
-	if err := r.db.Where("agent_online = ? AND address != ?", false, "").Find(&rows).Error; err != nil {
+	if err := r.db.Where("agent_online = ?", false).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil

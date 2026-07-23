@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom"
 import { AppShell } from "../components/AppShell"
 import { HostDetail } from "../components/HostDetail"
 import { LabKeeperDetail } from "../components/LabKeeperDetail"
@@ -28,6 +28,11 @@ function RootRedirect() {
   return <Navigate to="/labkeeper" replace />
 }
 
+function LegacyHostRedirect() {
+  const { hostId } = useParams<{ hostId: string }>()
+  return <Navigate to={hostId ? `/hosts/${hostId}` : "/labkeeper"} replace />
+}
+
 export function AppRoutes() {
   return (
     <BrowserRouter>
@@ -39,7 +44,8 @@ export function AppRoutes() {
           <Route path="/labkeeper" element={<LabKeeperDetail />} />
           <Route path="/credentials" element={<Navigate to="/labkeeper" replace />} />
           <Route path="/sites/:siteId" element={<SiteDetail />} />
-          <Route path="/sites/:siteId/hosts/:hostId" element={<HostDetail />} />
+          <Route path="/hosts/:hostId" element={<HostDetail />} />
+          <Route path="/sites/:siteId/hosts/:hostId" element={<LegacyHostRedirect />} />
           <Route path="/inventory" element={<Navigate to="/labkeeper" replace />} />
         </Route>
       </Routes>

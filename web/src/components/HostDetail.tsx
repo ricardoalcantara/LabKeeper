@@ -43,7 +43,7 @@ function statusClass(host: Host): string {
 }
 
 export function HostDetail() {
-  const { siteId, hostId } = useParams<{ siteId: string; hostId: string }>()
+  const { hostId } = useParams<{ hostId: string }>()
   const navigate = useNavigate()
   const { bumpRefresh, refreshKey } = useInventoryTree()
   const [host, setHost] = useState<Host | null>(null)
@@ -104,7 +104,7 @@ export function HostDetail() {
     try {
       await deleteHost(host.id)
       bumpRefresh()
-      navigate(siteId ? `/sites/${siteId}` : "/labkeeper")
+      navigate(host.site_id ? `/sites/${host.site_id}` : "/labkeeper")
     } catch (err) {
       if (err instanceof SessionExpiredError) {
         return
@@ -117,14 +117,14 @@ export function HostDetail() {
     return <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading host…</p>
   }
 
-  if (!host || !siteId) {
+  if (!host) {
     return <p className="text-sm text-red-600 dark:text-red-400">{error || "Host not found"}</p>
   }
 
   if (editing) {
     return (
       <HostForm
-        siteId={siteId}
+        siteId={host.site_id}
         host={host}
         onCancel={() => setEditing(false)}
         onSaved={() => {

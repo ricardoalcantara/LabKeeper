@@ -84,7 +84,7 @@ func (l *ProbeLoop) tick(ctx context.Context) {
 }
 
 func probeHost(ctx context.Context, host *entities.Host) bool {
-	addr := strings.TrimSpace(host.Address)
+	addr := probeAddress(host)
 	if addr == "" {
 		return false
 	}

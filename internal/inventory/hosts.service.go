@@ -38,9 +38,31 @@ func NewService(
 }
 
 // MarkAllAgentsOffline clears Agent WebSocket presence after Server restart.
-// Reachability (`online`) is left for the probe loop to refresh.
+// Reachability (`online`) is left for the probe loop when a probe target exists.
 func (s *Service) MarkAllAgentsOffline() error {
-	return s.hosts.MarkAllAgentsOffline()
+	if err := s.hosts.ClearAllAgentOnline(); err != nil {
+		return err
+	}
+	rows, err := s.hosts.List("")
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	for i := range rows {
+		row := &rows[i]
+		if hostHasProbeTarget(row) {
+			continue
+		}
+		if !row.Online {
+			continue
+		}
+		row.Online = false
+		row.UpdatedAt = now
+		if err := s.hosts.Update(row); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) UpsertFromAgent(fingerprint, subject, remoteAddr, hostname, osName string, ips []string) (dto.HostResponse, error) {
@@ -142,7 +164,7 @@ func (s *Service) MarkAgentOffline(fingerprint string) error {
 	}
 	now := time.Now().UTC()
 	row.AgentOnline = false
-	if strings.TrimSpace(row.Address) == "" {
+	if !hostHasProbeTarget(row) {
 		row.Online = false
 	}
 	row.LastSeen = &now
@@ -311,7 +333,17 @@ func (s *Service) Delete(id string) error {
 }
 
 func (s *Service) ListProbeTargets() ([]entities.Host, error) {
-	return s.hosts.ListProbeTargets()
+	rows, err := s.hosts.ListAgentOffline()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]entities.Host, 0, len(rows))
+	for i := range rows {
+		if hostHasProbeTarget(&rows[i]) {
+			out = append(out, rows[i])
+		}
+	}
+	return out, nil
 }
 
 func (s *Service) ApplyProbeResult(id string, online bool) error {

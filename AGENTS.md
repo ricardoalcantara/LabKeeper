@@ -105,14 +105,14 @@ Agent:
 
 - `/` auto-redirects to SSO when unauthenticated; authenticated users land on `/labkeeper`
 - Portal shell is Proxmox-like: left tree rooted at **LabKeeper** (Sites → Hosts); right detail pane
-- Routes: `/labkeeper` (global overview + Credentials vault), `/sites/:siteId`, `/sites/:siteId/hosts/:hostId`
+- Routes: `/labkeeper` (global overview + Credentials vault), `/sites/:siteId`, `/hosts/:hostId`
 - Clicking **LabKeeper** in the tree shows global config including Credentials (not a separate tree node)
 - Hosts load lazily when a Site is expanded in the tree (`GET /api/inventory?site_id=`)
 - Portal follows system color scheme by default (`prefers-color-scheme`); users can toggle light/dark via the header button (stored in `localStorage`)
 - `/credentials` redirects to `/labkeeper`
 - Credentials vault (login secret; optional SSH key passphrase; optional `become_method` / `become_user` / become secret) is managed on the LabKeeper detail. List/get never return secrets — only `has_passphrase` / `has_become_secret` flags.
 - Inventory Hosts are persisted (`hosts` table) with required `site_id`. Agents upsert by `agent_fingerprint` (client cert) into the default Site (`Default`) until enrollment UI exists. Optional `credential_id` links one vault credential for future SSH. `cpu_cores` / `memory_bytes` are reserved for Agent discovery.
-- **Reachability**: `agent_online` = Agent WebSocket connected; `online` = Agent connected **or** Server probe succeeded. Per-host `probe_method` (`icmp` default | `tcp`) + `probe_port` (TCP only). Server goroutine probes agent-offline hosts with a non-empty `address` on `LABKEEPER_PROBE_INTERVAL` — Portal only polls inventory (no run-probe API). Tree/detail: green = Agent up; amber “reachable · Agent offline” when probe succeeds without Agent; red = offline.
+- **Reachability**: `agent_online` = Agent WebSocket connected; `online` = Agent connected **or** Server probe succeeded. Per-host `probe_method` (`icmp` default | `tcp`) + `probe_port` (TCP only). Server goroutine probes agent-offline hosts using Portal `address` or, if empty, the first usable Agent-reported IP (`LABKEEPER_PROBE_INTERVAL`). Portal only polls inventory (no run-probe API). Tree/detail: green = Agent up; amber “reachable · Agent offline” when probe succeeds without Agent; red = offline.
 - After editing embedded goose SQL in `migrations/00001_init.sql`, wipe local SQLite with `rm -rf data/` before restart.
 - LAN **Discover** is on-demand from a Site detail when that Site has `discovery_enabled` and the Server has a private (RFC1918) interface. Scans run on the Server (`/api/discovery/*`), max `/23`, ICMP (`ping`) + TCP `22/80/443/445`; results are candidates — never auto-added.
 - `/login` stays on page and shows the SSO button (no auto redirect)
