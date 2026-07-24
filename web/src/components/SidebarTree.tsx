@@ -19,21 +19,18 @@ function hostLabel(host: Host): string {
 }
 
 function hostStatusTitle(host: Host): string {
-  if (host.online && host.agent_online) {
+  if (!host.online) {
+    return "Offline"
+  }
+  if (host.agent_online) {
     return "Online · Agent connected"
   }
-  if (host.online) {
-    return "Reachable · Agent offline"
-  }
-  return "Offline"
+  return "Online · Agent offline"
 }
 
 function hostStatusColor(host: Host): string {
-  if (host.online && host.agent_online) {
-    return "var(--color-status-online)"
-  }
   if (host.online) {
-    return "var(--color-status-reachable)"
+    return "var(--color-status-online)"
   }
   return "var(--color-status-offline)"
 }
@@ -236,30 +233,10 @@ export function SidebarTree() {
                           title={hostStatusTitle(host)}
                         >
                           <span className="relative inline-flex shrink-0">
-                            <Monitor
-                              className={[
-                                iconClass,
-                                host.online && !host.agent_online ? "opacity-50" : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              strokeWidth={1.75}
-                              aria-hidden
-                            />
+                            <Monitor className={iconClass} strokeWidth={1.75} aria-hidden />
                             <span
-                              className={[
-                                "absolute -right-0.5 -bottom-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-sidebar dark:ring-zinc-900",
-                                host.online && !host.agent_online ? "outline outline-1 outline-offset-0" : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              style={{
-                                backgroundColor: hostStatusColor(host),
-                                outlineColor:
-                                  host.online && !host.agent_online
-                                    ? "var(--color-status-reachable)"
-                                    : undefined,
-                              }}
+                              className="absolute -right-0.5 -bottom-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-sidebar dark:ring-zinc-900"
+                              style={{ backgroundColor: hostStatusColor(host) }}
                               aria-hidden
                             />
                           </span>
