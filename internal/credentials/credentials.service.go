@@ -55,6 +55,47 @@ func (s *Service) Get(id string) (*dto.CredentialResponse, error) {
 	return &resp, nil
 }
 
+// SSHAuth decrypts vault material for an in-process SSH dial.
+// Secrets are never returned over REST — only used by the Server SSH bridge.
+func (s *Service) SSHAuth(id string) (username string, methods []ssh.AuthMethod, err error) {
+	row, err := s.repo.GetByID(id)
+	if err != nil {
+		return "", nil, err
+	}
+
+	secret, err := s.crypto.Decrypt(row.SecretCiphertext)
+	if err != nil {
+		return "", nil, fmt.Errorf("decrypt secret: %w", err)
+	}
+
+	switch row.Type {
+	case entities.TypePassword:
+		methods = []ssh.AuthMethod{ssh.Password(string(secret))}
+	case entities.TypeSSHKey:
+		passphrase := ""
+		if len(row.PassphraseCiphertext) > 0 {
+			plain, err := s.crypto.Decrypt(row.PassphraseCiphertext)
+			if err != nil {
+				return "", nil, fmt.Errorf("decrypt passphrase: %w", err)
+			}
+			passphrase = string(plain)
+		}
+		signer, err := parseSSHPrivateKey(secret, passphrase)
+		if err != nil {
+			return "", nil, fmt.Errorf("%w: %v", ErrInvalidKey, err)
+		}
+		methods = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	default:
+		return "", nil, ErrInvalidType
+	}
+
+	username = strings.TrimSpace(row.Username)
+	if username == "" {
+		return "", nil, fmt.Errorf("credential username is empty")
+	}
+	return username, methods, nil
+}
+
 func (s *Service) Create(req dto.CreateCredentialRequest) (*dto.CredentialResponse, error) {
 	credType := strings.TrimSpace(req.Type)
 	passphrase := req.Passphrase

@@ -25,6 +25,7 @@ Do **not** call Inventory items “servers” — **Server** is the LabKeeper Ad
 - `internal/site/` — Sites CRUD API (`/api/site`)
 - `internal/inventory/` — Inventory Hosts (DB), Agent hub, Hosts CRUD API (`/api/inventory`)
 - `internal/discovery/` — private LAN discovery (ICMP + TCP; JWT; `/api/discovery`)
+- `internal/terminal/` — Host Console (Portal ticket + WebSocket; Agent local PTY or Server SSH)
 - `internal/netprobe/` — shared ICMP ping + TCP dial used by discovery and inventory probe
 - `internal/credentials/` — encrypted Credentials vault (password / SSH key + optional key passphrase + Ansible-style become)
 - `internal/crypto/` — `CryptoService` (AES-GCM via `LABKEEPER_MASTER_KEY`)
@@ -50,10 +51,20 @@ Follow [go-minstack AGENTS.example.md](https://github.com/go-minstack/go-minstac
 - **Collection path = resource name** — `/api/site`, `/api/inventory`, `/api/credentials`. Do not nest the entity twice (`/api/inventory/hosts`).
 - **Item path = collection + id** — `/api/inventory/:id`.
 - **Filters on collection GET** — query params (`GET /api/inventory?site_id=`), not extra path segments.
-- **Non-CRUD actions** — separate namespace (`/api/discovery/scan`, `/api/credentials/ssh-keygen`).
+- **Non-CRUD actions** — separate namespace (`/api/discovery/scan`, `/api/credentials/ssh-keygen`, `/api/terminal`).
 - **Product names vs paths** — “Host” is the entity; `/api/inventory` is the host collection (maps to `hosts` table). Do not expose duplicate `/api/host` and `/api/inventory`.
 - **Avoid redundant joins** — Host list/get returns `site_id` only; site names come from `GET /api/site` on the client.
 - **Secrets** — list/get never return decrypted credential fields.
+
+### Host Console (terminal)
+
+- Portal tab **Console** on Host detail (`@xterm/xterm`); streams over WebSocket to Server.
+- `POST /api/terminal` (JWT) mints a short-lived ticket with `mode`: `auto` | `agent` | `ssh` → `{ ticket, expires_in, path }`.
+- `GET /api/terminal/ws?ticket=` upgrades (ticket auth; browsers cannot send `Authorization` on WS).
+- **agent** path: Server multiplexes `shell_*` messages on the Agent mTLS WS; Agent opens a local PTY (`creack/pty`) as the Agent process user (no vault secrets).
+- **ssh** path: Server decrypts vault credential in-process and `ssh.Dial`s the Host (`address` or first usable Agent IP, port 22). Host key verification is insecure in v1 (lab).
+- `auto` prefers Agent when online, else SSH when credential + dial target exist.
+- Portal protocol: binary frames = PTY I/O; text JSON `{type:"resize",cols,rows}` / `{type:"error",message}`.
 
 ### Auth boundaries
 
@@ -105,14 +116,15 @@ Agent:
 
 - `/` auto-redirects to SSO when unauthenticated; authenticated users land on `/labkeeper`
 - Portal shell is Proxmox-like: left tree rooted at **LabKeeper** (Sites → Hosts); right detail pane
-- Routes: `/labkeeper` (global overview + Credentials vault), `/sites/:siteId`, `/hosts/:hostId`
+- Routes: `/labkeeper` (global overview + Credentials vault), `/sites/:siteId`, `/hosts/:hostId` (Host detail includes **Console** tab)
 - Clicking **LabKeeper** in the tree shows global config including Credentials (not a separate tree node)
 - Hosts load lazily when a Site is expanded in the tree (`GET /api/inventory?site_id=`)
 - Portal follows system color scheme by default (`prefers-color-scheme`); users can toggle light/dark via the header button (stored in `localStorage`)
 - `/credentials` redirects to `/labkeeper`
 - Credentials vault (login secret; optional SSH key passphrase; optional `become_method` / `become_user` / become secret) is managed on the LabKeeper detail. List/get never return secrets — only `has_passphrase` / `has_become_secret` flags.
-- Inventory Hosts are persisted (`hosts` table) with required `site_id`. Agents upsert by `agent_fingerprint` (client cert) into the default Site (`Default`) until enrollment UI exists. Optional `credential_id` links one vault credential for future SSH. `cpu_cores` / `memory_bytes` are reserved for Agent discovery.
+- Inventory Hosts are persisted (`hosts` table) with required `site_id`. Agents upsert by `agent_fingerprint` (client cert) into the default Site (`Default`) until enrollment UI exists. Optional `credential_id` links one vault credential for SSH Console. `cpu_cores` / `memory_bytes` are reserved for Agent discovery.
 - **Reachability**: `agent_online` = Agent WebSocket connected; `online` = Agent connected **or** Server probe succeeded. Per-host `probe_method` (`icmp` default | `tcp`) + `probe_port` (TCP only). Server goroutine probes agent-offline hosts using Portal `address` or, if empty, the first usable Agent-reported IP (`LABKEEPER_PROBE_INTERVAL`). Portal only polls inventory (no run-probe API). Tree/detail: green = Agent up; amber “reachable · Agent offline” when probe succeeds without Agent; red = offline.
+- **Console**: Host detail → Console (or header chip). Path Auto/Agent/SSH. Agent path needs `agent_online`; SSH path needs `credential_id` + dialable address/IP.
 - After editing embedded goose SQL in `migrations/00001_init.sql`, wipe local SQLite with `rm -rf data/` before restart.
 - LAN **Discover** is on-demand from a Site detail when that Site has `discovery_enabled` and the Server has a private (RFC1918) interface. Scans run on the Server (`/api/discovery/*`), max `/23`, ICMP (`ping`) + TCP `22/80/443/445`; results are candidates — never auto-added.
 - `/login` stays on page and shows the SSO button (no auto redirect)

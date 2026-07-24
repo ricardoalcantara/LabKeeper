@@ -180,6 +180,9 @@ func (w *connWriter) writeJSON(v any) error {
 
 func handleConnection(connection *websocket.Conn, hostname string, heartbeatInterval time.Duration) error {
 	writer := &connWriter{conn: connection}
+	shells := newShellManager(writer, hostname)
+	defer shells.closeAll()
+
 	facts := func() (string, string, []string) {
 		return hostname, runtime.GOOS + "/" + runtime.GOARCH, localIPs()
 	}
@@ -217,6 +220,11 @@ func handleConnection(connection *websocket.Conn, hostname string, heartbeatInte
 					errors <- err
 					return
 				}
+			case httpapi.MessageTypeShellOpen,
+				httpapi.MessageTypeShellData,
+				httpapi.MessageTypeShellResize,
+				httpapi.MessageTypeShellClose:
+				shells.handle(message)
 			default:
 				log.Printf("message received: type=%s id=%s body=%s", message.Type, message.ID, message.Message)
 			}

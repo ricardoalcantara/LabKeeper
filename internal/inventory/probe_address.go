@@ -7,6 +7,12 @@ import (
 	"github.com/ricardoalcantara/LabKeeper/internal/inventory/entities"
 )
 
+// DialAddress returns the best target for SSH or reachability checks:
+// Portal-set Address first, otherwise the first usable IP reported by the Agent.
+func DialAddress(host *entities.Host) string {
+	return probeAddress(host)
+}
+
 // probeAddress returns the best target for ICMP/TCP reachability checks:
 // Portal-set Address first, otherwise the first usable IP reported by the Agent.
 func probeAddress(host *entities.Host) string {

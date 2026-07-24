@@ -3,6 +3,7 @@ module github.com/ricardoalcantara/LabKeeper
 go 1.26.4
 
 require (
+	github.com/creack/pty v1.1.24
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-minstack/go-minstack v0.2.0

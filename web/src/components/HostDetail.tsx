@@ -8,6 +8,7 @@ import {
   Monitor,
   Pencil,
   RefreshCw,
+  TerminalSquare,
   Trash2,
   TriangleAlert,
   Zap,
@@ -16,8 +17,9 @@ import { deleteHost, fetchHost, fetchSite, type Host } from "../lib/api"
 import { useInventoryTree } from "../lib/inventoryTree"
 import { SessionExpiredError } from "../lib/oidc"
 import { HostForm } from "./HostForm"
+import { HostTerminal } from "./HostTerminal"
 
-type Tab = "overview" | "network" | "telemetry"
+type Tab = "overview" | "network" | "telemetry" | "terminal"
 
 type DerivedEvent = {
   tone: "ok" | "warn" | "accent"
@@ -382,6 +384,7 @@ export function HostDetail() {
       ),
     },
     { id: "telemetry", label: "Telemetria & Hardware" },
+    { id: "terminal", label: "Console" },
   ]
 
   return (
@@ -427,6 +430,10 @@ export function HostDetail() {
                 strokeWidth={2}
               />
               Testar Conexão
+            </ChipButton>
+            <ChipButton onClick={() => setTab("terminal")}>
+              <TerminalSquare className="h-3.5 w-3.5" strokeWidth={2} />
+              Console
             </ChipButton>
             <ChipButton onClick={() => setEditing(true)}>
               <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
@@ -706,6 +713,8 @@ export function HostDetail() {
           ) : null}
         </SectionCard>
       ) : null}
+
+      {tab === "terminal" ? <HostTerminal host={host} /> : null}
     </div>
   )
 }

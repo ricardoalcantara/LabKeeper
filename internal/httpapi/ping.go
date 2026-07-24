@@ -5,6 +5,13 @@ const (
 	MessageTypePong      = "pong"
 	MessageTypeHello     = "hello"
 	MessageTypeHeartbeat = "heartbeat"
+
+	MessageTypeShellOpen   = "shell_open"
+	MessageTypeShellOpened = "shell_opened"
+	MessageTypeShellError  = "shell_error"
+	MessageTypeShellData   = "shell_data"
+	MessageTypeShellResize = "shell_resize"
+	MessageTypeShellClose  = "shell_close"
 )
 
 // Message is the Agent ↔ Server WebSocket envelope.
@@ -17,6 +24,10 @@ type Message struct {
 	Hostname string   `json:"hostname,omitempty"`
 	OS       string   `json:"os,omitempty"`
 	IPs      []string `json:"ips,omitempty"`
+	// Shell session fields (local PTY multiplex).
+	Cols int    `json:"cols,omitempty"`
+	Rows int    `json:"rows,omitempty"`
+	Data string `json:"data,omitempty"` // base64 for shell_data
 	// Reserved for future Agent hardware discovery (ignored until implemented).
 	CPUCores    *int   `json:"cpu_cores,omitempty"`
 	MemoryBytes *int64 `json:"memory_bytes,omitempty"`

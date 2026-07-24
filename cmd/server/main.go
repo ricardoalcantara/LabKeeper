@@ -12,6 +12,7 @@ import (
 	"github.com/ricardoalcantara/LabKeeper/internal/portalauth"
 	"github.com/ricardoalcantara/LabKeeper/internal/site"
 	"github.com/ricardoalcantara/LabKeeper/internal/storage"
+	"github.com/ricardoalcantara/LabKeeper/internal/terminal"
 	"github.com/ricardoalcantara/LabKeeper/migrations"
 )
 
@@ -29,6 +30,7 @@ func main() {
 	site.Register(app)
 	inventory.Register(app)
 	discovery.Register(app)
+	terminal.Register(app)
 
 	app.Invoke(migration.Run)
 	app.Run()

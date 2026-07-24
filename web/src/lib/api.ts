@@ -388,3 +388,42 @@ export async function generateSSHKey(): Promise<GeneratedSSHKey> {
   }
   return JSON.parse(await response.text()) as GeneratedSSHKey
 }
+
+export type TerminalMode = "auto" | "agent" | "ssh"
+export type TerminalPath = "agent" | "ssh"
+
+export type TerminalTicket = {
+  ticket: string
+  expires_in: number
+  path: TerminalPath
+}
+
+export async function createTerminalTicket(input: {
+  hostId: string
+  cols: number
+  rows: number
+  mode?: TerminalMode
+}): Promise<TerminalTicket> {
+  const response = await apiFetch("/api/terminal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      host_id: input.hostId,
+      cols: input.cols,
+      rows: input.rows,
+      mode: input.mode ?? "auto",
+    }),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response, "Terminal ticket failed"))
+  }
+  return JSON.parse(await response.text()) as TerminalTicket
+}
+
+export function terminalWebSocketURL(ticket: string): string {
+  const httpBase = apiBase()
+  const wsBase = httpBase.replace(/^http/i, (scheme) =>
+    scheme.toLowerCase() === "https" ? "wss" : "ws",
+  )
+  return `${wsBase}/api/terminal/ws?ticket=${encodeURIComponent(ticket)}`
+}

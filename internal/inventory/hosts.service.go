@@ -214,6 +214,11 @@ func (s *Service) Get(id string) (*dto.HostResponse, error) {
 	return &resp, nil
 }
 
+// GetEntity returns the raw Host row for Server-side dial / terminal path selection.
+func (s *Service) GetEntity(id string) (*entities.Host, error) {
+	return s.hosts.GetByID(id)
+}
+
 func (s *Service) Create(req dto.CreateHostRequest) (*dto.HostResponse, error) {
 	siteID := strings.TrimSpace(req.SiteID)
 	if siteID == "" {
